@@ -1,1 +1,737 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>EMK BED 주문관리</title>
+<style>
+  :root{
+    --bg:#f5f2ec; --card:#ffffff; --line:#e6e1d8; --ink:#1d1b18; --ink-2:#5b574f; --ink-3:#8f8a80;
+    --accent:#1d1b18; --accent-ink:#fff; --ok:#1b7f4b; --warn:#b26a00; --bad:#b3261e;
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#8f8a80;
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;-webkit-font-smoothing:antialiased}
+  button,input,select,textarea{font:inherit;color:inherit}
+  a{color:inherit}
+  .hidden{display:none!important}
 
+  /* ---------- 공통 ---------- */
+  .wrap{max-width:1080px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+  .card + .card{margin-top:14px}
+  .label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+  h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em}
+  h2{font-size:20px;margin:4px 0 14px}
+  h3{font-size:15px;margin-bottom:10px}
+  .muted{color:var(--ink-3);font-size:13px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .grow{flex:1 1 auto}
+  .field{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .field label{font-size:12.5px;color:var(--ink-2);font-weight:600}
+  .field input,.field select,.field textarea{
+    width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fcfbf9;outline:none;min-height:44px
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--ink);background:#fff}
+  .field input[readonly]{background:#f1efe9;color:var(--ink-2)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media (max-width:640px){.grid3{grid-template-columns:1fr 1fr}}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border-radius:10px;border:1px solid var(--ink);background:var(--accent);color:var(--accent-ink);cursor:pointer;min-height:44px;font-weight:600;white-space:nowrap}
+  .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+  .btn.sm{padding:7px 11px;min-height:34px;font-size:13px;border-radius:8px}
+  .btn:disabled{opacity:.5;cursor:default}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--line);background:#faf8f4}
+  .pill.접수{color:#2a5db0;border-color:#c9daf5;background:#eef4ff}
+  .pill.제작중{color:var(--warn);border-color:#f0dcb5;background:#fff6e6}
+  .pill.배송완료{color:var(--ok);border-color:#bfe3cf;background:#ebf7f0}
+  .pill.취소{color:var(--ink-3);text-decoration:line-through}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,.2);max-width:90vw}
+  .toast.err{background:var(--bad)}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ---------- 로그인 ---------- */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  #login .card{width:100%;max-width:400px;padding:28px}
+  .brand{font-weight:800;letter-spacing:.18em;font-size:13px}
+  .brand small{display:block;letter-spacing:0;font-weight:500;color:var(--ink-3);margin-top:2px}
+
+  /* ---------- 앱 헤더 ---------- */
+  header{position:sticky;top:0;z-index:20;background:rgba(245,242,236,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
+  .user{font-size:13px;color:var(--ink-2);text-align:right}
+  .user b{color:var(--ink)}
+  nav{display:flex;gap:4px;padding:0 16px 10px;max-width:1080px;margin:0 auto;overflow-x:auto}
+  nav button{flex:1 0 auto;padding:9px 14px;border-radius:999px;border:1px solid transparent;background:transparent;color:var(--ink-2);cursor:pointer;font-weight:600;font-size:14px}
+  nav button.on{background:var(--ink);color:#fff}
+
+  /* ---------- 주문 목록 ---------- */
+  .orders{display:flex;flex-direction:column;gap:10px}
+  .order{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff}
+  .order .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+  .order .no{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .order .name{font-weight:700;font-size:16px}
+  .order dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:10px 0 0;font-size:13.5px}
+  .order dt{color:var(--ink-3)}
+  .order dd{margin:0}
+  .order .foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px;flex-wrap:wrap}
+  .amt{font-weight:700;font-variant-numeric:tabular-nums}
+  .order select{padding:6px 8px;border-radius:8px;border:1px solid var(--line);min-height:34px;background:#fff}
+
+  /* ---------- 대시보드 ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  @media (max-width:760px){.kpis{grid-template-columns:1fr 1fr}}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+  .kpi .v{font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:4px}
+  .kpi .d{font-size:12px;color:var(--ink-3);margin-top:2px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  .seg button{padding:8px 12px;border:0;background:transparent;cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-2);min-height:38px}
+  .seg button.on{background:var(--ink);color:#fff}
+  .chart{position:relative;width:100%}
+  .chart svg{width:100%;height:auto;display:block}
+  .chart text{font-family:inherit}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--ink-2);margin:6px 0 2px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .tip{position:absolute;pointer-events:none;background:var(--ink);color:#fff;font-size:12.5px;padding:8px 10px;border-radius:8px;white-space:nowrap;transform:translate(-50%,calc(-100% - 10px));opacity:0;transition:opacity .08s;z-index:5;line-height:1.4}
+  .tip b{font-weight:700}
+  .tbl-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px}
+  table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums;min-width:720px}
+  th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th{background:#faf8f4;color:var(--ink-2);font-weight:600;font-size:12px;position:sticky;top:0}
+  th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:#fff;font-weight:600;z-index:1}
+  th:first-child{background:#faf8f4;z-index:2}
+  tr:last-child td{border-bottom:0}
+  tfoot td{font-weight:700;background:#faf8f4}
+  td .sub{display:block;font-size:11px;color:var(--ink-3);font-weight:400}
+  #statusbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:space-between;gap:12px;padding:6px 14px calc(6px + env(safe-area-inset-bottom));background:var(--ink);color:#c3c2b7;font-size:11.5px;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+  #statusbar b{color:#fff;font-weight:600}
+  #statusbar .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#1baf7a;margin-right:6px;vertical-align:0}
+  #statusbar.busy .dot{background:#eda100}
+  #statusbar.err .dot{background:#e34948}
+  body{padding-bottom:34px}
+  .toast{bottom:48px}
+  .demo{background:#fff3cd;color:#6b4e00;border:1px solid #f0dc9c;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px}
+</style>
+</head>
+<body>
+
+<!-- ============ 로그인 ============ -->
+<section id="login">
+  <div class="card">
+    <div class="brand">EMK BED<small>프레임 주문관리</small></div>
+    <h2 style="margin-top:18px">지점 로그인</h2>
+    <div id="demoNote" class="demo hidden">데모 모드 — API_URL이 비어 있어 가짜 데이터로 동작합니다.<br>admin / 1234 또는 PT-GD / 1234</div>
+    <form id="loginForm" class="field" style="gap:12px">
+      <div class="field"><label>지점코드</label><input id="lgCode" autocomplete="username" autocapitalize="off" placeholder="예: PT-GD"></div>
+      <div class="field"><label>비밀번호</label><input id="lgPw" type="password" autocomplete="current-password"></div>
+      <button class="btn" id="lgBtn" type="submit">로그인</button>
+      <div class="muted" style="text-align:center">로그인 후 1개월간 자동 로그인됩니다</div>
+      <div id="lgMsg" class="muted" style="color:var(--bad)"></div>
+    </form>
+  </div>
+</section>
+
+<!-- ============ 앱 ============ -->
+<div id="app" class="hidden">
+  <header>
+    <div class="wrap">
+      <div class="brand">EMK BED<small>프레임 주문관리</small></div>
+      <div class="row" style="gap:12px">
+        <div class="user"><b id="uName"></b><br><span id="uRole"></span></div>
+        <button class="btn ghost sm" id="logoutBtn">로그아웃</button>
+      </div>
+    </div>
+    <nav id="nav">
+      <button data-v="new" class="on">주문등록</button>
+      <button data-v="list">주문목록</button>
+      <button data-v="dash">대시보드</button>
+      <button data-v="acct" class="hidden adminOnly">지점계정</button>
+    </nav>
+  </header>
+
+  <main class="wrap">
+
+    <!-- ---------- 주문등록 ---------- -->
+    <section id="v-new">
+      <div class="card">
+        <div class="label">빠른 입력</div>
+        <h2>주문 문자 붙여넣기</h2>
+        <div class="field">
+          <textarea id="pasteBox" rows="6" placeholder="카톡/문자로 받은 주문 내용을 그대로 붙여넣고 '자동 채우기'를 누르세요.
+
+고객명 : 씰리평택고덕
+제품 : 스퀘어 K (ES-14 블랙/다리없음바닥22cm)
+매트리스 사이즈 : 1650-2080
+매트리스 높이 : 34cm
+배송일 : 26년 10월 23일"></textarea>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn ghost" id="parseBtn" type="button">자동 채우기 ↓</button>
+          <span class="muted" id="parseMsg"></span>
+        </div>
+      </div>
+
+      <form class="card" id="orderForm">
+        <div class="label">주문 내용</div>
+        <h2>프레임 주문</h2>
+
+        <div class="field adminOnly hidden" style="margin-bottom:12px">
+          <label>주문 지점 (관리자 대리등록)</label>
+          <select id="fBranch"></select>
+        </div>
+
+        <div class="field"><label>1. 고객명 *</label><input id="fCustomer" required placeholder="예: 씰리평택고덕 / 김OO 고객"></div>
+        <div class="field" style="margin-top:12px"><label>2. 제품명 *</label><select id="fProduct" required></select></div>
+        <div class="field" style="margin-top:12px"><label>3. 원단</label><input id="fFabric" placeholder="예: ES-14 블랙"></div>
+        <div class="grid2" style="margin-top:12px">
+          <div class="field"><label>4. 매트리스 사이즈</label><input id="fSize" placeholder="예: 1650-2080" inputmode="numeric"></div>
+          <div class="field"><label>5. 매트리스 높이</label><input id="fHeight" placeholder="예: 34cm"></div>
+        </div>
+        <div class="field" style="margin-top:12px"><label>6. 배송일 *</label><input id="fDate" type="date" required></div>
+
+        <div class="row adminOnly hidden" style="margin-top:12px">
+          <div class="field grow"><label>수량 <span class="muted">(관리자)</span></label><input id="fQty" type="number" min="1" value="1" inputmode="numeric"></div>
+          <div class="field grow"><label>단가 <span class="muted">(관리자)</span></label><input id="fUnit" inputmode="numeric"></div>
+          <div class="field grow"><label>금액</label><input id="fAmount" readonly></div>
+        </div>
+
+        <div class="row" style="margin-top:16px;justify-content:space-between">
+          <span class="muted">* 필수 · 저장 후 '주문목록'에서 확인됩니다</span>
+          <button class="btn" id="submitBtn" type="submit">저장</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ---------- 주문목록 ---------- -->
+    <section id="v-list" class="hidden">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div><div class="label">주문 내역</div><h2 style="margin-bottom:0">주문목록</h2></div>
+          <button class="btn ghost sm" id="reloadList">새로고침</button>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <div class="field adminOnly hidden" style="min-width:160px"><label>지점</label><select id="lBranch"><option value="">전체</option></select></div>
+          <div class="field" style="min-width:140px"><label>접수월</label><input type="month" id="lMonth"></div>
+          <div class="field" style="min-width:120px"><label>상태</label>
+            <select id="lStatus"><option value="">전체</option><option>접수</option><option>제작중</option><option>배송완료</option><option>취소</option></select>
+          </div>
+          <div class="field grow"><label>검색</label><input id="lSearch" placeholder="고객명·주문번호·제품"></div>
+        </div>
+        <div class="muted" id="listSummary" style="margin:12px 0 10px"></div>
+        <div class="orders" id="orders"></div>
+      </div>
+    </section>
+
+    <!-- ---------- 대시보드 ---------- -->
+    <section id="v-dash" class="hidden">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div><div class="label">지점별 · 월별</div><h2 style="margin-bottom:0">대시보드</h2></div>
+          <div class="row">
+            <select id="dYear" style="padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:#fff;min-height:38px"></select>
+            <div class="seg" id="dBasis"><button data-b="created" class="on">접수일 기준</button><button data-b="delivery">배송일 기준</button></div>
+          </div>
+        </div>
+        <div class="muted" style="margin-top:6px">취소 주문은 제외됩니다.</div>
+
+        <div class="kpis" style="margin-top:16px" id="kpis"></div>
+
+        <div style="margin-top:22px" class="row">
+          <h3 style="margin:0" class="grow">월별 추이</h3>
+          <div class="seg" id="dMetric"><button data-m="revenue" class="on">매출액</button><button data-m="qty">주문수량</button></div>
+        </div>
+        <div class="legend" id="dLegend"></div>
+        <div class="chart" id="dChart"><div class="tip" id="dTip"></div></div>
+
+        <h3 style="margin-top:24px">지점 × 월 상세</h3>
+        <div class="muted" style="margin-bottom:8px">위: 주문수량(건 수) · 아래: 매출액</div>
+        <div class="tbl-wrap" id="dTable"></div>
+      </div>
+    </section>
+
+    <!-- ---------- 지점계정 (관리자) ---------- -->
+    <section id="v-acct" class="hidden">
+      <div class="card">
+        <div class="label">관리자</div>
+        <h2>지점계정</h2>
+        <div class="muted" style="margin-bottom:12px">계정 추가·비밀번호 변경은 구글시트 <b>지점계정</b> 탭에서 직접 하세요. (사용=N 이면 로그인 차단)</div>
+        <div class="tbl-wrap" id="acctTable"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ============ 상태바 ============ -->
+<footer id="statusbar">
+  <span id="sbVer"></span>
+  <span id="sbSync">동기화 —</span>
+</footer>
+
+<script>
+/* =========================================================
+   설정 — Apps Script 웹앱 URL을 여기에 붙이세요
+   ========================================================= */
+const API_URL = 'https://script.google.com/macros/s/AKfycbzGE73NMIxBazXlxI5sdzeUhyHzumy3v-tPG0aOvEkcmwC3M0TBP-65Ba5TCZmX_o8D/exec';   // 예: 'https://script.google.com/macros/s/AKfy.../exec'
+const APP_NAME = 'EMK BED';
+const VERSION  = 'v1.2.0';   // 수정할 때마다 올려주세요 (지점 화면 하단 상태바에 표시)
+
+/* ========================================================= */
+const DEMO = !API_URL;
+const SERIES = ['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#6250d6','#8f8a80'];
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const won = n => '₩' + Math.round(n || 0).toLocaleString('ko-KR');
+const num = n => (n || 0).toLocaleString('ko-KR');
+
+let state = { token: localStorage.getItem('pf_token') || '', user: null, products: [], accounts: [], orders: [], dash: null,
+              basis: 'created', metric: 'revenue', year: new Date().getFullYear() };
+
+/* ---------------- API ---------------- */
+async function api(action, payload = {}) {
+  setSync('busy');
+  try {
+    let data;
+    if (DEMO) data = await demoApi(action, payload);
+    else {
+      const res = await fetch(API_URL, {
+        method: 'POST', redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },  // preflight 회피
+        body: JSON.stringify({ action, token: state.token, ...payload }),
+      });
+      data = await res.json();
+      if (data.error === 'AUTH') { doLogout(true); throw new Error('세션이 만료되었습니다. 다시 로그인하세요.'); }
+      if (!data.ok) throw new Error(data.error || '오류');
+    }
+    setSync('ok'); return data;
+  } catch (err) { setSync('err'); throw err; }
+}
+
+/* ---------------- 상태바 ---------------- */
+let lastSync = null;
+function setSync(st) {
+  const sb = $('#statusbar'); sb.classList.remove('busy', 'err');
+  if (st === 'busy') { sb.classList.add('busy'); $('#sbSync').innerHTML = '<span class="dot"></span>동기화 중…'; return; }
+  if (st === 'ok') lastSync = new Date();
+  if (st === 'err') sb.classList.add('err');
+  renderSync();
+}
+function renderSync() {
+  const sb = $('#statusbar');
+  const p2 = n => String(n).padStart(2, '0');
+  const t = lastSync ? `${p2(lastSync.getMonth() + 1)}.${p2(lastSync.getDate())} ${p2(lastSync.getHours())}:${p2(lastSync.getMinutes())}:${p2(lastSync.getSeconds())}` : '—';
+  $('#sbSync').innerHTML = `<span class="dot"></span>${sb.classList.contains('err') ? '동기화 실패 · 마지막 ' : '동기화 '}<b>${t}</b>`;
+}
+$('#sbVer').innerHTML = `<b>${APP_NAME}</b> 주문관리 ${VERSION}${DEMO ? ' · 데모' : ''}`;
+
+let toastTimer;
+function toast(msg, err) {
+  let t = $('.toast'); if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.toggle('err', !!err);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 2800);
+}
+function busy(btn, on, label) {
+  btn.disabled = on; if (on) { btn.dataset.l = btn.textContent; btn.innerHTML = '<span class="spinner"></span> ' + (label || '처리 중'); }
+  else btn.textContent = btn.dataset.l || btn.textContent;
+}
+
+/* ---------------- 로그인 ---------------- */
+$('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault(); $('#lgMsg').textContent = '';
+  const btn = $('#lgBtn'); busy(btn, true, '로그인 중');
+  try {
+    const r = await api('login', { branchCode: $('#lgCode').value.trim(), password: $('#lgPw').value });
+    state.token = r.token; localStorage.setItem('pf_token', r.token);
+    state.user = r.user; enterApp();
+  } catch (err) { $('#lgMsg').textContent = err.message; }
+  finally { busy(btn, false); }
+});
+$('#logoutBtn').addEventListener('click', () => doLogout());
+function doLogout(silent) {
+  if (!silent && state.token) api('logout').catch(() => {});
+  state.token = ''; localStorage.removeItem('pf_token'); state.user = null;
+  $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); $('#lgPw').value = '';
+}
+
+async function boot() {
+  if (DEMO) $('#demoNote').classList.remove('hidden');
+  if (state.token) {
+    try { const r = await api('me'); state.user = r.user; enterApp(); return; } catch (e) { state.token = ''; }
+  }
+  $('#login').classList.remove('hidden');
+}
+
+async function enterApp() {
+  const u = state.user, admin = u.role === 'admin';
+  $('#uName').textContent = u.name; $('#uRole').textContent = admin ? '본사 관리자' : '지점 계정 · ' + u.code;
+  $$('.adminOnly').forEach(el => el.classList.toggle('hidden', !admin));
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  try {
+    const p = await api('products'); state.products = p.products;
+    $('#fProduct').innerHTML = '<option value="">선택</option>' + state.products.map(p => `<option value="${esc(p.name)}" data-price="${p.price}">${esc(p.name)}</option>`).join('');
+    if (admin) {
+      const a = await api('accounts'); state.accounts = a.accounts.filter(x => x.role !== 'admin');
+      const opts = state.accounts.map(x => `<option value="${esc(x.code)}">${esc(x.name)} (${esc(x.code)})</option>`).join('');
+      $('#fBranch').innerHTML = opts; $('#lBranch').innerHTML = '<option value="">전체</option>' + opts;
+      renderAccounts(a.accounts);
+    }
+  } catch (err) { toast(err.message, true); }
+  showView('new');
+}
+
+/* ---------------- 네비 ---------------- */
+$('#nav').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showView(b.dataset.v); });
+function showView(v) {
+  $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  ['new','list','dash','acct'].forEach(k => $('#v-' + k).classList.toggle('hidden', k !== v));
+  if (v === 'list') loadOrders();
+  if (v === 'dash') loadDash();
+  window.scrollTo({ top: 0 });
+}
+
+/* ---------------- 주문 문자 파싱 ---------------- */
+$('#parseBtn').addEventListener('click', () => {
+  const r = parseOrderText($('#pasteBox').value);
+  if (!r.any) { $('#parseMsg').textContent = '인식할 항목이 없어요. 형식을 확인해주세요.'; return; }
+  if (r.customer) $('#fCustomer').value = r.customer;
+  if (r.productRaw) {
+    const m = matchProduct(r.productRaw);
+    if (m.product) { $('#fProduct').value = m.product; syncPrice(); }
+    $('#fFabric').value = r.fabric || m.fabric;
+    if (!m.product) $('#parseMsg').textContent = `제품 "${r.productRaw}" 을(를) 목록에서 못 찾았어요. 직접 선택해주세요.`;
+  } else if (r.fabric) $('#fFabric').value = r.fabric;
+  if (r.size)   $('#fSize').value = r.size;
+  if (r.height) $('#fHeight').value = r.height;
+  if (r.date)   $('#fDate').value = r.date;
+  if (r.qty)    $('#fQty').value = r.qty;
+  calcAmount();
+  if (!$('#parseMsg').textContent) $('#parseMsg').textContent = '채웠어요. 내용 확인 후 등록하세요.';
+  $('#fCustomer').focus();
+});
+
+function parseOrderText(txt) {
+  const out = { any: false };
+  const lines = txt.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const grab = (re) => { for (const l of lines) { const m = l.match(re); if (m) return m[1].trim(); } return ''; };
+  out.customer   = grab(/^고객\s*명?\s*[:：]\s*(.+)$/);
+  out.productRaw = grab(/^제품\s*(?:명)?\s*[:：]\s*(.+)$/);
+  out.fabric     = grab(/^(?:원단|패브릭|가죽|컬러|색상)\s*[:：]\s*(.+)$/);
+  out.size       = grab(/^매트(?:리스)?\s*사이즈\s*[:：]\s*(.+)$/) || grab(/^사이즈\s*[:：]\s*(.+)$/);
+  out.height     = grab(/^매트(?:리스)?\s*높이\s*[:：]\s*(.+)$/) || grab(/^높이\s*[:：]\s*(.+)$/);
+  const dateRaw  = grab(/^배송\s*(?:일|날짜|요청일)?\s*[:：]\s*(.+)$/);
+  out.date       = parseKDate(dateRaw);
+  const q = grab(/^수량\s*[:：]\s*(\d+)/); out.qty = q ? parseInt(q, 10) : 0;
+  out.any = !!(out.customer || out.productRaw || out.fabric || out.size || out.height || out.date);
+  return out;
+}
+function parseKDate(s) {
+  if (!s) return '';
+  const now = new Date();
+  let m = s.match(/(\d{2,4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일?/);
+  if (m) { let y = +m[1]; if (y < 100) y += 2000; return ymd(y, +m[2], +m[3]); }
+  m = s.match(/(\d{4})[.\-\/]\s*(\d{1,2})[.\-\/]\s*(\d{1,2})/);
+  if (m) return ymd(+m[1], +m[2], +m[3]);
+  m = s.match(/(\d{2})[.\-\/]\s*(\d{1,2})[.\-\/]\s*(\d{1,2})/);
+  if (m) return ymd(2000 + +m[1], +m[2], +m[3]);
+  m = s.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일?/) || s.match(/^(\d{1,2})[.\/](\d{1,2})/);
+  if (m) return ymd(now.getFullYear(), +m[1], +m[2]);
+  return '';
+}
+const ymd = (y, m, d) => `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+function matchProduct(raw) {
+  // "스퀘어 K (ES-14 블랙/다리없음바닥22cm)" → 제품 '스퀘어22' (이름의 글자 부분이 앞에 오고, 숫자 부분이 본문 어딘가에 있으면 우선)
+  const norm = s => String(s).replace(/\s+/g, '').toLowerCase();
+  const r = norm(raw);
+  const paren = raw.match(/\(([^)]*)\)/);           // 괄호 안 = 원단/사양 후보
+  const fabric = paren ? paren[1].split('/')[0].trim() : '';
+  let best = null, bestScore = 0;
+  state.products.forEach(p => {
+    const n = norm(p.name); const letters = n.replace(/[\d.]+/g, ''); const digits = n.match(/[\d.]+/g) || [];
+    if (!letters || r.indexOf(letters) !== 0) return;
+    let score = letters.length + 1;
+    if (digits.length) { if (digits.every(d => r.indexOf(d) >= 0)) score += 10; else score -= 5; }
+    if (score > bestScore) { bestScore = score; best = p.name; }
+  });
+  return { product: best || '', fabric };
+}
+
+/* ---------------- 주문 폼 ---------------- */
+function syncPrice() {
+  const opt = $('#fProduct').selectedOptions[0];
+  $('#fUnit').value = opt && opt.dataset.price !== undefined ? Number(opt.dataset.price).toLocaleString('ko-KR') : '';
+  calcAmount();
+}
+function unitValue() { return Number(String($('#fUnit').value).replace(/[^\d]/g, '')) || 0; }
+function calcAmount() { $('#fAmount').value = won(unitValue() * (parseInt($('#fQty').value, 10) || 1)); }
+$('#fProduct').addEventListener('change', syncPrice);
+$('#fQty').addEventListener('input', calcAmount);
+$('#fUnit').addEventListener('input', calcAmount);
+$('#fUnit').addEventListener('blur', () => { if (!$('#fUnit').readOnly) $('#fUnit').value = unitValue().toLocaleString('ko-KR'); });
+
+$('#orderForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const order = {
+    branchCode: $('#fBranch').value || undefined,
+    customer: $('#fCustomer').value.trim(), product: $('#fProduct').value, fabric: $('#fFabric').value.trim(),
+    mattressSize: $('#fSize').value.trim(), mattressHeight: $('#fHeight').value.trim(),
+    deliveryDate: $('#fDate').value, qty: parseInt($('#fQty').value, 10) || 1,
+    unitPrice: unitValue(),
+  };
+  if (!order.product) return toast('제품을 선택하세요', true);
+  const btn = $('#submitBtn'); busy(btn, true, '등록 중');
+  try {
+    const r = await api('createOrder', { order });
+    toast(`저장 완료 · ${r.orderNo}`);
+    ['fCustomer','fFabric','fSize','fHeight','fDate','pasteBox'].forEach(id => $('#' + id).value = '');
+    $('#fQty').value = 1; $('#fProduct').value = ''; syncPrice(); $('#parseMsg').textContent = '';
+  } catch (err) { toast(err.message, true); }
+  finally { busy(btn, false); }
+});
+
+/* ---------------- 주문 목록 ---------------- */
+['lBranch','lMonth','lStatus'].forEach(id => $('#' + id).addEventListener('change', loadOrders));
+$('#lSearch').addEventListener('input', renderOrders);
+$('#reloadList').addEventListener('click', loadOrders);
+
+async function loadOrders() {
+  $('#orders').innerHTML = '<div class="muted">불러오는 중…</div>';
+  try {
+    const r = await api('listOrders', { branchCode: $('#lBranch').value || undefined, month: $('#lMonth').value || undefined, status: $('#lStatus').value || undefined });
+    state.orders = r.orders; renderOrders();
+  } catch (err) { $('#orders').innerHTML = ''; toast(err.message, true); }
+}
+function renderOrders() {
+  const q = $('#lSearch').value.trim().toLowerCase();
+  const list = state.orders.filter(o => !q || [o.customer, o.orderNo, o.product, o.fabric, o.branchName].join(' ').toLowerCase().includes(q));
+  const live = list.filter(o => o.status !== '취소');
+  $('#listSummary').textContent = `${list.length}건 · 수량 ${num(live.reduce((s, o) => s + o.qty, 0))} · 합계 ${won(live.reduce((s, o) => s + o.amount, 0))} (취소 제외)`;
+  const admin = state.user.role === 'admin';
+  if (!list.length) { $('#orders').innerHTML = '<div class="muted">주문이 없습니다.</div>'; return; }
+  $('#orders').innerHTML = list.map(o => `
+    <div class="order" data-no="${esc(o.orderNo)}">
+      <div class="top">
+        <div><div class="no">${esc(o.orderNo)} · ${fmtDT(o.createdAt)}${admin ? ' · <b>' + esc(o.branchName) + '</b>' : ''}</div>
+             <div class="name">${esc(o.customer)}</div></div>
+        <span class="pill ${esc(o.status)}">${esc(o.status)}</span>
+      </div>
+      <dl>
+        <dt>제품</dt><dd>${esc(o.product)}</dd>
+        ${o.fabric ? `<dt>원단</dt><dd>${esc(o.fabric)}</dd>` : ''}
+        ${o.mattressSize ? `<dt>매트리스</dt><dd>${esc(o.mattressSize)}${o.mattressHeight ? ' · 높이 ' + esc(o.mattressHeight) : ''}</dd>` : ''}
+        <dt>배송일</dt><dd>${esc(o.deliveryDate)}</dd>
+        ${o.memo ? `<dt>요청</dt><dd>${esc(o.memo)}</dd>` : ''}
+      </dl>
+      <div class="foot">
+        <div class="amt">${o.qty}개 × ${won(o.unitPrice)} = ${won(o.amount)}</div>
+        <div class="row" style="gap:6px">
+          ${admin ? `<select class="stSel">${['접수','제작중','배송완료','취소'].map(s => `<option ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}</select>
+                    <button class="btn ghost sm priceBtn">단가</button>`
+                  : (o.status === '접수' ? '<button class="btn ghost sm cancelBtn">주문취소</button>' : '')}
+        </div>
+      </div>
+    </div>`).join('');
+}
+$('#orders').addEventListener('change', async e => {
+  if (!e.target.classList.contains('stSel')) return;
+  const no = e.target.closest('.order').dataset.no;
+  try { await api('updateOrder', { orderNo: no, fields: { status: e.target.value } }); toast('상태 변경: ' + e.target.value); loadOrders(); }
+  catch (err) { toast(err.message, true); }
+});
+$('#orders').addEventListener('click', async e => {
+  const card = e.target.closest('.order'); if (!card) return;
+  const no = card.dataset.no; const o = state.orders.find(x => x.orderNo === no);
+  if (e.target.classList.contains('cancelBtn')) {
+    if (!confirm(`${no} 주문을 취소할까요?`)) return;
+    try { await api('updateOrder', { orderNo: no, fields: { status: '취소' } }); toast('주문이 취소되었습니다'); loadOrders(); } catch (err) { toast(err.message, true); }
+  }
+  if (e.target.classList.contains('priceBtn')) {
+    const v = prompt(`단가 수정 (${no})`, o.unitPrice); if (v === null) return;
+    const q = prompt('수량', o.qty); if (q === null) return;
+    try { await api('updateOrder', { orderNo: no, fields: { unitPrice: Number(String(v).replace(/[^\d]/g, '')), qty: parseInt(q, 10) || 1 } }); toast('수정 완료'); loadOrders(); } catch (err) { toast(err.message, true); }
+  }
+});
+
+/* ---------------- 대시보드 ---------------- */
+$('#dYear').addEventListener('change', () => { state.year = +$('#dYear').value; loadDash(); });
+$('#dBasis').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.basis = b.dataset.b; $$('#dBasis button').forEach(x => x.classList.toggle('on', x === b)); loadDash(); });
+$('#dMetric').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.metric = b.dataset.m; $$('#dMetric button').forEach(x => x.classList.toggle('on', x === b)); renderDash(); });
+window.addEventListener('resize', () => { if (state.dash && !$('#v-dash').classList.contains('hidden')) renderChart(); });
+
+async function loadDash() {
+  try {
+    const r = await api('dashboard', { year: state.year, basis: state.basis });
+    state.dash = r;
+    $('#dYear').innerHTML = r.years.map(y => `<option ${+y === +r.year ? 'selected' : ''}>${y}</option>`).join('');
+    renderDash();
+  } catch (err) { toast(err.message, true); }
+}
+
+function dashSeries() {
+  const d = state.dash;
+  const codes = Object.keys(d.branches);
+  const total = c => d.months.reduce((s, m) => s + (((d.matrix[c] || {})[m] || {}).revenue || 0), 0);
+  codes.sort((a, b) => total(b) - total(a) || d.branches[a].localeCompare(d.branches[b]));
+  // 최대 7개 지점 + 기타 (색은 고정 순서)
+  const top = codes.slice(0, 7), rest = codes.slice(7);
+  const series = top.map((c, i) => ({ code: c, name: d.branches[c], color: SERIES[i], cells: d.months.map(m => (d.matrix[c] || {})[m] || { count: 0, qty: 0, revenue: 0 }) }));
+  if (rest.length) series.push({ code: '_other', name: `기타 ${rest.length}개 지점`, color: SERIES[7],
+    cells: d.months.map(m => rest.reduce((acc, c) => { const x = (d.matrix[c] || {})[m] || {}; acc.count += x.count || 0; acc.qty += x.qty || 0; acc.revenue += x.revenue || 0; return acc; }, { count: 0, qty: 0, revenue: 0 })) });
+  return { series, codes };
+}
+
+function renderDash() {
+  const d = state.dash; if (!d) return;
+  const now = new Date(); const thisM = ymd(now.getFullYear(), now.getMonth() + 1, 1).slice(0, 7);
+  const prevD = new Date(now.getFullYear(), now.getMonth() - 1, 1); const prevM = ymd(prevD.getFullYear(), prevD.getMonth() + 1, 1).slice(0, 7);
+  const sum = (m, k) => Object.keys(d.matrix).reduce((s, c) => s + ((d.matrix[c][m] || {})[k] || 0), 0);
+  const yearSum = k => d.months.reduce((s, m) => s + sum(m, k), 0);
+  const delta = (a, b) => b ? `전월 ${b > 0 ? (a >= b ? '+' : '') + Math.round((a - b) / b * 100) + '%' : '—'}` : '전월 데이터 없음';
+  const inYear = thisM.slice(0, 4) === String(d.year);
+  $('#kpis').innerHTML = `
+    <div class="kpi"><div class="label">이번 달 주문</div><div class="v">${inYear ? num(sum(thisM, 'qty')) + '<span style="font-size:14px;font-weight:600"> 개</span>' : '—'}</div><div class="d">${inYear ? num(sum(thisM, 'count')) + '건 · ' + delta(sum(thisM, 'qty'), sum(prevM, 'qty')) : d.year + '년 데이터'}</div></div>
+    <div class="kpi"><div class="label">이번 달 매출</div><div class="v">${inYear ? won(sum(thisM, 'revenue')) : '—'}</div><div class="d">${inYear ? delta(sum(thisM, 'revenue'), sum(prevM, 'revenue')) : ''}</div></div>
+    <div class="kpi"><div class="label">${d.year}년 누계 주문</div><div class="v">${num(yearSum('qty'))}<span style="font-size:14px;font-weight:600"> 개</span></div><div class="d">${num(yearSum('count'))}건</div></div>
+    <div class="kpi"><div class="label">${d.year}년 누계 매출</div><div class="v">${won(yearSum('revenue'))}</div><div class="d">${Object.keys(d.matrix).length}개 지점 주문</div></div>`;
+  renderChart(); renderDashTable();
+}
+
+function renderChart() {
+  const d = state.dash; const { series } = dashSeries();
+  const metric = state.metric; const isRev = metric === 'revenue';
+  const el = $('#dChart'); const tip = $('#dTip');
+  const multi = series.length > 1;
+  $('#dLegend').innerHTML = multi ? series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join('') : '';
+
+  const W = Math.max(320, el.clientWidth || 640), H = W < 480 ? 240 : 300;
+  const pad = { l: 46, r: 10, t: 14, b: 28 };
+  const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+  const totals = d.months.map((m, i) => series.reduce((s, sr) => s + sr.cells[i][metric], 0));
+  const max = Math.max(1, ...totals);
+  const step = niceStep(max / 4); const yMax = Math.ceil(max / step) * step || step;
+  const y = v => pad.t + ih - (v / yMax) * ih;
+  const gw = iw / 12, bw = Math.min(40, gw * 0.62);
+  const fmtY = v => isRev ? (v >= 1e8 ? (v / 1e8).toFixed(v % 1e8 ? 1 : 0) + '억' : v >= 1e4 ? Math.round(v / 1e4) + '만' : num(v)) : num(v);
+
+  let g = '';
+  for (let v = 0; v <= yMax + 1e-9; v += step) {
+    g += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}" stroke="#e6e1d8" stroke-width="1"/>`;
+    g += `<text x="${pad.l - 8}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#8f8a80">${fmtY(v)}</text>`;
+  }
+  let bars = '';
+  d.months.forEach((m, i) => {
+    const x = pad.l + gw * i + (gw - bw) / 2;
+    let acc = 0;
+    series.forEach((sr, si) => {
+      const v = sr.cells[i][metric]; if (!v) return;
+      const y1 = y(acc + v), y0 = y(acc);
+      const h = Math.max(0, y0 - y1 - (acc ? 2 : 0));   // 2px 구분 간격
+      const isTop = acc + v === totals[i];
+      bars += `<rect class="bar" data-i="${i}" data-s="${si}" x="${x}" y="${y1}" width="${bw}" height="${h}" fill="${sr.color}" ${isTop ? 'rx="4"' : ''}/>`;
+      acc += v;
+    });
+    if (totals[i]) bars += `<text x="${x + bw / 2}" y="${y(totals[i]) - 5}" text-anchor="middle" font-size="10.5" fill="#5b574f">${fmtY(totals[i])}</text>`;
+    bars += `<rect class="hit" data-i="${i}" x="${pad.l + gw * i}" y="${pad.t}" width="${gw}" height="${ih}" fill="transparent"/>`;
+    g += `<text x="${pad.l + gw * i + gw / 2}" y="${H - 8}" text-anchor="middle" font-size="11" fill="#8f8a80">${+m.slice(5)}월</text>`;
+  });
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="월별 ${isRev ? '매출액' : '주문수량'}">${g}${bars}</svg>` + tip.outerHTML;
+  const svg = el.querySelector('svg'); const t = $('#dTip');
+  const showTip = target => {
+    const hit = target && target.closest('.hit, .bar'); if (!hit) { t.style.opacity = 0; return; }
+    const i = +hit.dataset.i; const rect = el.getBoundingClientRect();
+    const rows = series.filter(s => s.cells[i][metric]).map(s => `<div><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${s.color};margin-right:6px"></i>${esc(s.name)} <b>${isRev ? won(s.cells[i][metric]) : num(s.cells[i][metric]) + '개'}</b></div>`).join('');
+    t.innerHTML = `<div style="color:#c3c2b7;margin-bottom:3px">${d.year}년 ${+d.months[i].slice(5)}월 · 합계 <b style="color:#fff">${isRev ? won(totals[i]) : num(totals[i]) + '개'}</b></div>${rows || '<div>주문 없음</div>'}`;
+    const cx = (pad.l + gw * i + gw / 2) / W * rect.width;
+    t.style.left = Math.min(Math.max(cx, 90), rect.width - 90) + 'px';
+    t.style.top = (y(totals[i]) / H * rect.height) + 'px'; t.style.opacity = 1;
+  };
+  svg.addEventListener('mousemove', e => showTip(e.target));
+  svg.addEventListener('mouseleave', () => t.style.opacity = 0);
+  svg.addEventListener('touchstart', e => { const ev = e.touches[0]; showTip(document.elementFromPoint(ev.clientX, ev.clientY)); }, { passive: true });
+}
+function niceStep(raw) { if (raw <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(raw))); const n = raw / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p; }
+
+function renderDashTable() {
+  const d = state.dash; const { codes } = dashSeries();
+  const cell = (c, m) => (d.matrix[c] || {})[m] || { count: 0, qty: 0, revenue: 0 };
+  const colTot = m => codes.reduce((a, c) => { const x = cell(c, m); a.qty += x.qty; a.revenue += x.revenue; return a; }, { qty: 0, revenue: 0 });
+  const rowTot = c => d.months.reduce((a, m) => { const x = cell(c, m); a.qty += x.qty; a.revenue += x.revenue; return a; }, { qty: 0, revenue: 0 });
+  const td = x => x.qty ? `<td>${num(x.qty)}<span class="sub">${won(x.revenue)}</span></td>` : '<td class="muted">—</td>';
+  const head = `<tr><th>지점</th>${d.months.map(m => `<th>${+m.slice(5)}월</th>`).join('')}<th>연간</th></tr>`;
+  const body = codes.map(c => `<tr><td>${esc(d.branches[c])}</td>${d.months.map(m => td(cell(c, m))).join('')}${td(rowTot(c))}</tr>`).join('')
+             || `<tr><td colspan="14" class="muted" style="text-align:center">데이터 없음</td></tr>`;
+  const all = d.months.reduce((a, m) => { const x = colTot(m); a.qty += x.qty; a.revenue += x.revenue; return a; }, { qty: 0, revenue: 0 });
+  const foot = codes.length > 1 ? `<tfoot><tr><td>합계</td>${d.months.map(m => td(colTot(m))).join('')}${td(all)}</tr></tfoot>` : '';
+  $('#dTable').innerHTML = `<table><thead>${head}</thead><tbody>${body}</tbody>${foot}</table>`;
+}
+
+/* ---------------- 지점계정 ---------------- */
+function renderAccounts(list) {
+  $('#acctTable').innerHTML = `<table style="min-width:520px"><thead><tr><th>지점코드</th><th style="text-align:left">지점명</th><th>권한</th><th>사용</th><th style="text-align:left">메모</th></tr></thead><tbody>
+    ${list.map(a => `<tr><td>${esc(a.code)}</td><td style="text-align:left">${esc(a.name)}</td><td>${a.role === 'admin' ? '관리자' : '지점'}</td><td>${String(a.use).toUpperCase() === 'Y' ? '✓' : '<span class="muted">차단</span>'}</td><td style="text-align:left" class="muted">${esc(a.memo || '')}</td></tr>`).join('')}
+  </tbody></table>`;
+}
+
+/* ---------------- 유틸 ---------------- */
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function fmtDT(iso) { if (!iso) return ''; const [d, t] = iso.split('T'); return d.slice(2).replace(/-/g, '.') + (t ? ' ' + t.slice(0, 5) : ''); }
+
+/* ---------------- 데모 모드 (API_URL 비었을 때) ---------------- */
+function demoApi(action, p) {
+  const db = demoDb();
+  const resp = o => new Promise(r => setTimeout(() => r(o), 150));
+  const fail = m => Promise.reject(new Error(m));
+  if (action === 'login') {
+    const a = db.accounts.find(x => x.code === p.branchCode && p.password === '1234');
+    if (!a) return fail('지점코드 또는 비밀번호가 맞지 않습니다 (데모: admin / 1234)');
+    db.session = a; save(); return resp({ ok: true, token: 'demo', user: a });
+  }
+  const u = db.session; if (!u) return fail('AUTH');
+  const mine = o => u.role === 'admin' || o.branchCode === u.code;
+  switch (action) {
+    case 'me': return resp({ ok: true, user: u });
+    case 'logout': db.session = null; save(); return resp({ ok: true });
+    case 'products': return resp({ ok: true, products: db.products });
+    case 'accounts': return resp({ ok: true, accounts: db.accounts });
+    case 'createOrder': {
+      const o = p.order; const acc = u.role === 'admin' && o.branchCode ? db.accounts.find(a => a.code === o.branchCode) : u;
+      const unit = u.role === 'admin' && o.unitPrice >= 0 ? o.unitPrice : (db.products.find(x => x.name === o.product) || {}).price || 0;
+      const no = 'PF-' + new Date().toISOString().slice(2, 10).replace(/-/g, '') + '-' + String(db.orders.length + 1).padStart(3, '0');
+      db.orders.unshift({ orderNo: no, createdAt: new Date().toISOString().slice(0, 19), branchCode: acc.code, branchName: acc.name, customer: o.customer, product: o.product, fabric: o.fabric, mattressSize: o.mattressSize, mattressHeight: o.mattressHeight, deliveryDate: o.deliveryDate, qty: o.qty, unitPrice: unit, amount: unit * o.qty, status: '접수', memo: '' });
+      save(); return resp({ ok: true, orderNo: no });
+    }
+    case 'listOrders': return resp({ ok: true, orders: db.orders.filter(o => mine(o) && (!p.branchCode || o.branchCode === p.branchCode) && (!p.month || o.createdAt.slice(0, 7) === p.month) && (!p.status || o.status === p.status)) });
+    case 'updateOrder': { const o = db.orders.find(x => x.orderNo === p.orderNo); if (!o || !mine(o)) return fail('권한 없음');
+      if (u.role !== 'admin' && !(p.fields.status === '취소' && o.status === '접수')) return fail('접수 상태의 주문만 취소할 수 있어요.');
+      Object.assign(o, p.fields); if (p.fields.unitPrice !== undefined || p.fields.qty !== undefined) o.amount = o.unitPrice * o.qty; save(); return resp({ ok: true }); }
+    case 'dashboard': {
+      const year = String(p.year || new Date().getFullYear()); const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+      const branches = {}, matrix = {};
+      db.orders.filter(o => mine(o) && o.status !== '취소').forEach(o => { const d = p.basis === 'delivery' ? o.deliveryDate : o.createdAt.slice(0, 10); if (d.slice(0, 4) !== year) return;
+        branches[o.branchCode] = o.branchName; matrix[o.branchCode] = matrix[o.branchCode] || {}; const c = matrix[o.branchCode][d.slice(0, 7)] = matrix[o.branchCode][d.slice(0, 7)] || { count: 0, qty: 0, revenue: 0 }; c.count++; c.qty += o.qty; c.revenue += o.amount; });
+      if (u.role === 'admin') db.accounts.filter(a => a.role !== 'admin').forEach(a => branches[a.code] = branches[a.code] || a.name);
+      return resp({ ok: true, year, basis: p.basis, months, branches, matrix, years: [String(+year - 1), year] });
+    }
+  }
+  return fail('알 수 없는 action');
+  function save() { sessionStorage.setItem('pf_demo', JSON.stringify(db)); }
+}
+function demoDb() {
+  const c = sessionStorage.getItem('pf_demo'); if (c) return JSON.parse(c);
+  const accounts = [{ code: 'admin', name: 'EMK BED 본사', role: 'admin', use: 'Y' }, { code: 'PT-GD', name: '씰리 평택 고덕점', role: 'branch', use: 'Y' }, { code: 'SW-YT', name: '씰리 수원 영통점', role: 'branch', use: 'Y' }, { code: 'YI-GH', name: '씰리 용인 기흥점', role: 'branch', use: 'Y' }];
+  const products = [{ name: '스퀘어22', price: 350000 }, { name: '스퀘어', price: 330000 }, { name: '셀레나', price: 390000 }, { name: '솔루나', price: 690000 }, { name: '커브', price: 590000 }];
+  const orders = []; let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const y = new Date().getFullYear(); const nowM = new Date().getMonth();
+  for (let m = 0; m <= nowM; m++) for (const a of accounts.slice(1)) { const n = Math.floor(rnd() * 5) + (a.code === 'PT-GD' ? 2 : 0); for (let k = 0; k < n; k++) {
+    const pr = products[Math.floor(rnd() * products.length)]; const day = Math.floor(rnd() * 27) + 1; const qty = rnd() > .85 ? 2 : 1;
+    orders.push({ orderNo: `PF-${String(y).slice(2)}${String(m + 1).padStart(2, '0')}${String(day).padStart(2, '0')}-${String(k + 1).padStart(3, '0')}`, createdAt: `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${10 + Math.floor(rnd() * 8)}:${String(Math.floor(rnd() * 60)).padStart(2, '0')}:00`, branchCode: a.code, branchName: a.name, customer: a.name.replace('씰리 ', '씰리').replace(/\s/g, ''), product: pr.name, fabric: pr.name.startsWith('스퀘어') ? 'ES-14 블랙' : 'ES-03 베이지', mattressSize: rnd() > .5 ? '1650-2080' : '1500-2000', mattressHeight: '34cm', deliveryDate: `${y}-${String(m + 1).padStart(2, '0')}-${String(Math.min(28, day + 7)).padStart(2, '0')}`, qty, unitPrice: pr.price, amount: pr.price * qty, status: m < nowM ? (rnd() > .08 ? '배송완료' : '취소') : ['접수', '제작중'][Math.floor(rnd() * 2)], memo: '' }); } }
+  orders.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return { accounts, products, orders, session: null };
+}
+
+boot();
+</script>
+</body>
+</html>
