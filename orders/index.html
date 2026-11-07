@@ -57,8 +57,9 @@
   .loading-note{display:flex;align-items:center;gap:8px;color:var(--ink-3);font-size:13px;padding:14px 0}
   .loading-note .spinner{border-color:#d8d3ca;border-top-color:var(--ink)}
   /* 상태 타일 */
-  .stat-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-  @media (max-width:760px){.stat-tiles{grid-template-columns:1fr 1fr}}
+  .stat-tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  @media (max-width:760px){.stat-tiles{grid-template-columns:1fr 1fr}.stat-tiles .tile:nth-child(5){grid-column:1/-1}}
+  .tile.off .n{color:var(--ink-3);text-decoration:line-through}
   .tile{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px}
   .tile:active{transform:scale(.98)}
   .tile .n{font-size:26px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.15}
@@ -94,7 +95,8 @@
   .orders{display:flex;flex-direction:column;gap:10px}
   .order{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff}
   .order .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
-  .order .no{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .order .no{font-size:16px;color:var(--ink-2);font-variant-numeric:tabular-nums;font-weight:600}
+  .order .no b{font-weight:700;color:var(--ink)}
   .order .name{font-weight:700;font-size:16px}
   .order dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:10px 0 0;font-size:13.5px}
   .order dt{color:var(--ink-3)}
@@ -148,7 +150,9 @@
   .tbl-wrap td.act{white-space:nowrap}
   .pwwrap{position:relative}
   .pwwrap input{padding-right:58px}
-  .masked{-webkit-text-security:disc;text-security:disc}
+  /* 비밀번호 마스킹: text-security 대신 전용 폰트(모든 글자를 ●로 렌더) → 한글 IME 조합이 깨지지 않음 */
+  @font-face{font-family:'PWMask';src:url(data:font/woff2;base64,d09GMgABAAAAAAGIAAoAAAAAXJAAAAE8AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgbNMCoEYgRQBNgIkAwwLCAAEIAVdBy0bz1vILgbshvqGyYIyliFE5Rg/ufX5WBfP/3Pfb597328e7C1vmDXhAv7A+TCBJhZQK7ICib/Pc81/Rwdc8bw0c9FcRWseWeHMz2i7iokunK8eZBxN9fS4RdASCgCCQBMOOIXkYD9d+IDfLnKxC/l1cvjLt6LgFEd0aEddyYeJAamzAW5LMNa1OIOEHwBHKG7saDA/3H1hyYJSHjTe6mYNRnzSv/DfTRQAEEu+8ygLUf2CoMEcCmfgCsAAghwcrGXDcYokyixLEyXdtvM4LV3X3A5/+TKgn+p4rD7pYOkkZLga5PmP161/iug/+N3J9OrePf9i0QqEYLXXFED5yNpA1xRyRE1B0A4QUAAAGNwgIOYQUObNaRkWxYpVt8qaw+6kNT3tX0LeAV0TLVMne31LaxcHU0ekCo1ODWl6AAA=) format('woff2')}
+  .masked{font-family:'PWMask',sans-serif;letter-spacing:1px}
   .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--ink-3);font-size:12.5px;font-weight:600;padding:8px;cursor:pointer}
   .demo{background:#fff3cd;color:#6b4e00;border:1px solid #f0dc9c;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px}
 </style>
@@ -365,9 +369,9 @@
 /* =========================================================
    설정 — Apps Script 웹앱 URL을 여기에 붙이세요
    ========================================================= */
-const API_URL = 'https://script.google.com/macros/s/AKfycbwYQUtFA9Sw28EU28vb96OzPYWd7FmzJ14c2RAxTqz1-YcB01yk1xgAVWfoDknH_rk/exec';   // 예: 'https://script.google.com/macros/s/AKfy.../exec'
+const API_URL = 'https://script.google.com/macros/s/AKfycbzJUZMUIozkoUghM2v4N6lggSw60fWYjnODoUkaokUcUJ76nOS1dnmUAmmbaQWKkkBe/exec';   // 예: 'https://script.google.com/macros/s/AKfy.../exec'
 const APP_NAME = 'EMK BED';
-const VERSION  = 'v1.5.1';   // 수정할 때마다 올려주세요 (지점 화면 하단 상태바에 표시)
+const VERSION  = 'v1.5.2';   // 수정할 때마다 올려주세요 (지점 화면 하단 상태바에 표시)
 
 /* ========================================================= */
 const DEMO = !API_URL;
@@ -683,12 +687,14 @@ function renderStatTiles() {
   const allReq  = d.orders.filter(o => o.status === '취소요청').length;
   const fmt = x => `${x.getMonth() + 1}.${x.getDate()}`; const e1 = new Date(e); e1.setDate(e1.getDate() - 1);
   $('#dPeriodNote').textContent = ({ week: '이번 주', month: '이번 달', year: '올해' })[state.period] + ` (${fmt(s)} ~ ${fmt(e1)}) 접수 기준 · 타일을 누르면 목록으로 이동`;
-  const w = cnt('주문접수대기'), a = cnt('주문접수'), dn = cnt('출고완료'), r = cnt('취소요청');
+  const w = cnt('주문접수대기'), a = cnt('주문접수'), dn = cnt('출고완료'), r = cnt('취소요청'), cx = cnt('취소');
+  const cxAmt = d.orders.filter(o => o.status === '취소' && inP(o)).reduce((s, o) => s + (o.amount || 0), 0);
   $('#statTiles').innerHTML = `
     <button class="tile wait" data-st="주문접수대기"><span class="t">신규주문 · 접수대기</span><span class="n">${w}<small>건</small></span><span class="s">${allWait !== w ? '전체 대기 ' + allWait + '건' : (state.user.role === 'admin' ? '접수 처리 필요' : '본사 접수 대기중')}</span></button>
     <button class="tile acc" data-st="주문접수"><span class="t">주문접수 완료</span><span class="n">${a}<small>건</small></span><span class="s">제작·출고 진행중</span></button>
     <button class="tile done" data-st="출고완료"><span class="t">출고완료</span><span class="n">${dn}<small>건</small></span><span class="s">기간 내 접수된 주문 중</span></button>
-    <button class="tile cxl" data-st="취소요청"><span class="t">취소요청</span><span class="n">${r}<small>건</small></span><span class="s">${allReq !== r ? '전체 ' + allReq + '건' : (state.user.role === 'admin' ? '승인 필요' : '본사 승인 대기')}</span></button>`;
+    <button class="tile cxl" data-st="취소요청"><span class="t">취소요청</span><span class="n">${r}<small>건</small></span><span class="s">${allReq !== r ? '전체 ' + allReq + '건' : (state.user.role === 'admin' ? '승인 필요' : '본사 승인 대기')}</span></button>
+    <button class="tile off" data-st="취소"><span class="t">취소</span><span class="n">${cx}<small>건</small></span><span class="s">${cx ? won(cxAmt) + ' 집계 제외' : '취소 없음'}</span></button>`;
 }
 function renderDash() {
   const d = state.dash; if (!d) return;
