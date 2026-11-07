@@ -44,10 +44,32 @@
   .btn.sm{padding:7px 11px;min-height:34px;font-size:13px;border-radius:8px}
   .btn:disabled{opacity:.5;cursor:default}
   .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--line);background:#faf8f4}
-  .pill.접수{color:#2a5db0;border-color:#c9daf5;background:#eef4ff}
-  .pill.제작중{color:var(--warn);border-color:#f0dcb5;background:#fff6e6}
-  .pill.배송완료{color:var(--ok);border-color:#bfe3cf;background:#ebf7f0}
+  .pill.주문접수대기{color:var(--warn);border-color:#f0dcb5;background:#fff6e6}
+  .pill.주문접수{color:#2a5db0;border-color:#c9daf5;background:#eef4ff}
+  .pill.출고완료{color:var(--ok);border-color:#bfe3cf;background:#ebf7f0}
+  .pill.취소요청{color:var(--bad);border-color:#f3c7c4;background:#fdeeed}
   .pill.취소{color:var(--ink-3);text-decoration:line-through}
+  /* 로딩 바 */
+  #loader{position:fixed;top:0;left:0;right:0;height:3px;z-index:60;background:transparent;pointer-events:none;opacity:0;transition:opacity .2s}
+  #loader.on{opacity:1}
+  #loader i{display:block;height:100%;width:30%;background:var(--ink);border-radius:3px;animation:slide 1.1s ease-in-out infinite}
+  @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
+  .loading-note{display:flex;align-items:center;gap:8px;color:var(--ink-3);font-size:13px;padding:14px 0}
+  .loading-note .spinner{border-color:#d8d3ca;border-top-color:var(--ink)}
+  /* 상태 타일 */
+  .stat-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  @media (max-width:760px){.stat-tiles{grid-template-columns:1fr 1fr}}
+  .tile{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px}
+  .tile:active{transform:scale(.98)}
+  .tile .n{font-size:26px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.15}
+  .tile .n small{font-size:13px;font-weight:600;color:var(--ink-3);margin-left:2px}
+  .tile .t{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+  .tile .s{font-size:11.5px;color:var(--ink-3)}
+  .tile.wait{border-color:#f0dcb5;background:#fffaf0}
+  .tile.wait .n{color:var(--warn)}
+  .tile.acc .n{color:#2a5db0}
+  .tile.done .n{color:var(--ok)}
+  .tile.cxl .n{color:var(--bad)}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,.2);max-width:90vw}
   .toast.err{background:var(--bad)}
   .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px}
@@ -117,6 +139,8 @@
 </style>
 </head>
 <body>
+
+<div id="loader"><i></i></div>
 
 <!-- ============ 로그인 ============ -->
 <section id="login">
@@ -214,9 +238,9 @@
         </div>
         <div class="row" style="margin-top:14px">
           <div class="field adminOnly hidden" style="min-width:160px"><label>지점</label><select id="lBranch"><option value="">전체</option></select></div>
-          <div class="field" style="min-width:140px"><label>접수월</label><input type="month" id="lMonth"></div>
-          <div class="field" style="min-width:120px"><label>상태</label>
-            <select id="lStatus"><option value="">전체</option><option>접수</option><option>제작중</option><option>배송완료</option><option>취소</option></select>
+          <div class="field" style="min-width:140px"><label>접수월</label><select id="lMonth"></select></div>
+          <div class="field" style="min-width:130px"><label>상태</label>
+            <select id="lStatus"><option value="">전체</option><option>주문접수대기</option><option>주문접수</option><option>출고완료</option><option>취소요청</option><option>취소</option></select>
           </div>
           <div class="field grow"><label>검색</label><input id="lSearch" placeholder="고객명·주문번호·제품"></div>
         </div>
@@ -235,19 +259,26 @@
             <div class="seg" id="dBasis"><button data-b="created" class="on">접수일 기준</button><button data-b="delivery">배송일 기준</button></div>
           </div>
         </div>
-        <div class="muted" style="margin-top:6px">취소 주문은 제외됩니다.</div>
+        <div class="row" style="margin-top:18px;justify-content:space-between">
+          <h3 style="margin:0">주문 현황</h3>
+          <div class="seg" id="dPeriod"><button data-p="week">주간</button><button data-p="month" class="on">월간</button><button data-p="year">년간</button></div>
+        </div>
+        <div class="muted" id="dPeriodNote" style="margin:4px 0 10px"></div>
+        <div class="stat-tiles" id="statTiles"></div>
 
-        <div class="kpis" style="margin-top:16px" id="kpis"></div>
+        <h3 style="margin-top:22px" id="kpiTitle">실적</h3>
+        <div class="muted" style="margin:-6px 0 10px">취소 주문은 제외됩니다.</div>
+        <div class="kpis" id="kpis"></div>
 
         <div style="margin-top:22px" class="row">
           <h3 style="margin:0" class="grow">월별 추이</h3>
-          <div class="seg" id="dMetric"><button data-m="revenue" class="on">매출액</button><button data-m="qty">주문수량</button></div>
+          <div class="seg" id="dMetric"><button data-m="revenue" class="on" id="dMetricRev">매출액</button><button data-m="qty">주문수량</button></div>
         </div>
         <div class="legend" id="dLegend"></div>
         <div class="chart" id="dChart"><div class="tip" id="dTip"></div></div>
 
         <h3 style="margin-top:24px">지점 × 월 상세</h3>
-        <div class="muted" style="margin-bottom:8px">위: 주문수량(건 수) · 아래: 매출액</div>
+        <div class="muted" style="margin-bottom:8px" id="dTableNote">위: 주문수량 · 아래: 매출액</div>
         <div class="tbl-wrap" id="dTable"></div>
       </div>
     </section>
@@ -277,7 +308,7 @@
    ========================================================= */
 const API_URL = 'https://script.google.com/macros/s/AKfycbzGE73NMIxBazXlxI5sdzeUhyHzumy3v-tPG0aOvEkcmwC3M0TBP-65Ba5TCZmX_o8D/exec';   // 예: 'https://script.google.com/macros/s/AKfy.../exec'
 const APP_NAME = 'EMK BED';
-const VERSION  = 'v1.2.0';   // 수정할 때마다 올려주세요 (지점 화면 하단 상태바에 표시)
+const VERSION  = 'v1.3.0';   // 수정할 때마다 올려주세요 (지점 화면 하단 상태바에 표시)
 
 /* ========================================================= */
 const DEMO = !API_URL;
@@ -288,11 +319,15 @@ const won = n => '₩' + Math.round(n || 0).toLocaleString('ko-KR');
 const num = n => (n || 0).toLocaleString('ko-KR');
 
 let state = { token: localStorage.getItem('pf_token') || '', user: null, products: [], accounts: [], orders: [], dash: null,
-              basis: 'created', metric: 'revenue', year: new Date().getFullYear() };
+              basis: 'created', metric: 'revenue', period: 'month', year: new Date().getFullYear() };
+const STATUS_FLOW = ['주문접수대기','주문접수','출고완료','취소요청','취소'];
+const moneyWord = () => state.user && state.user.role === 'admin' ? '매출액' : '결제금액';
 
 /* ---------------- API ---------------- */
+let pending = 0;
+function loaderOn(on) { pending = Math.max(0, pending + (on ? 1 : -1)); $('#loader').classList.toggle('on', pending > 0); }
 async function api(action, payload = {}) {
-  setSync('busy');
+  setSync('busy'); loaderOn(true);
   try {
     let data;
     if (DEMO) data = await demoApi(action, payload);
@@ -308,6 +343,7 @@ async function api(action, payload = {}) {
     }
     setSync('ok'); return data;
   } catch (err) { setSync('err'); throw err; }
+  finally { loaderOn(false); }
 }
 
 /* ---------------- 상태바 ---------------- */
@@ -368,6 +404,11 @@ async function enterApp() {
   const u = state.user, admin = u.role === 'admin';
   $('#uName').textContent = u.name; $('#uRole').textContent = admin ? '본사 관리자' : '지점 계정 · ' + u.code;
   $$('.adminOnly').forEach(el => el.classList.toggle('hidden', !admin));
+  $('#dMetricRev').textContent = moneyWord(); $('#dTableNote').textContent = '위: 주문수량 · 아래: ' + moneyWord();
+  // 관리자는 대시보드가 첫 화면
+  const nav = $('#nav'); const dashBtn = nav.querySelector('[data-v="dash"]');
+  if (admin) nav.insertBefore(dashBtn, nav.firstElementChild); else nav.insertBefore(dashBtn, nav.querySelector('[data-v="acct"]'));
+  buildMonthSelect();
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   try {
     const p = await api('products'); state.products = p.products;
@@ -379,7 +420,12 @@ async function enterApp() {
       renderAccounts(a.accounts);
     }
   } catch (err) { toast(err.message, true); }
-  showView('new');
+  showView(admin ? 'dash' : 'new');
+}
+function buildMonthSelect() {
+  const now = new Date(); const opts = ['<option value="">전체</option>'];
+  for (let i = 0; i < 18; i++) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); const v = ymd(d.getFullYear(), d.getMonth() + 1, 1).slice(0, 7); opts.push(`<option value="${v}">${d.getFullYear()}년 ${d.getMonth() + 1}월</option>`); }
+  $('#lMonth').innerHTML = opts.join(''); $('#lMonth').value = ymd(now.getFullYear(), now.getMonth() + 1, 1).slice(0, 7);
 }
 
 /* ---------------- 네비 ---------------- */
@@ -388,7 +434,7 @@ function showView(v) {
   $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   ['new','list','dash','acct'].forEach(k => $('#v-' + k).classList.toggle('hidden', k !== v));
   if (v === 'list') loadOrders();
-  if (v === 'dash') loadDash();
+  if (v === 'dash') { if (!state.dash) { $('#statTiles').innerHTML = '<div class="loading-note" style="grid-column:1/-1"><span class="spinner"></span>불러오는 중…</div>'; $('#kpis').innerHTML = ''; } loadDash(); }
   window.scrollTo({ top: 0 });
 }
 
@@ -497,7 +543,7 @@ $('#lSearch').addEventListener('input', renderOrders);
 $('#reloadList').addEventListener('click', loadOrders);
 
 async function loadOrders() {
-  $('#orders').innerHTML = '<div class="muted">불러오는 중…</div>';
+  $('#orders').innerHTML = '<div class="loading-note"><span class="spinner"></span>불러오는 중…</div>';
   try {
     const r = await api('listOrders', { branchCode: $('#lBranch').value || undefined, month: $('#lMonth').value || undefined, status: $('#lStatus').value || undefined });
     state.orders = r.orders; renderOrders();
@@ -526,26 +572,42 @@ function renderOrders() {
       </dl>
       <div class="foot">
         <div class="amt">${o.qty}개 × ${won(o.unitPrice)} = ${won(o.amount)}</div>
-        <div class="row" style="gap:6px">
-          ${admin ? `<select class="stSel">${['접수','제작중','배송완료','취소'].map(s => `<option ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}</select>
-                    <button class="btn ghost sm priceBtn">단가</button>`
-                  : (o.status === '접수' ? '<button class="btn ghost sm cancelBtn">주문취소</button>' : '')}
-        </div>
+        <div class="row" style="gap:6px">${orderActions(o, admin)}</div>
       </div>
     </div>`).join('');
 }
+function orderActions(o, admin) {
+  const b = (st, label, cls = 'ghost') => `<button class="btn ${cls} sm stBtn" data-st="${st}">${label}</button>`;
+  if (admin) {
+    let a = '';
+    if (o.status === '주문접수대기') a += b('주문접수', '주문접수', '');
+    if (o.status === '주문접수')     a += b('출고완료', '출고완료', '');
+    if (o.status === '취소요청')     a += b('취소', '취소승인', '') + b('주문접수', '반려');
+    return a + `<select class="stSel" title="상태 직접 변경">${STATUS_FLOW.map(s => `<option ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}</select><button class="btn ghost sm priceBtn">단가</button>`;
+  }
+  if (o.status === '주문접수대기') return b('취소', '주문취소');
+  if (o.status === '주문접수')     return b('취소요청', '취소요청');
+  if (o.status === '취소요청')     return '<span class="muted">본사 승인 대기중</span> ' + b('주문접수', '요청철회');
+  return '';
+}
+const CONFIRM_MSG = { '취소': '주문을 취소할까요?', '취소요청': '본사에 취소를 요청할까요? 승인되면 취소됩니다.', '주문접수': '주문을 접수할까요?', '출고완료': '출고완료로 변경할까요?' };
 $('#orders').addEventListener('change', async e => {
   if (!e.target.classList.contains('stSel')) return;
   const no = e.target.closest('.order').dataset.no;
-  try { await api('updateOrder', { orderNo: no, fields: { status: e.target.value } }); toast('상태 변경: ' + e.target.value); loadOrders(); }
+  try { await api('updateOrder', { orderNo: no, fields: { status: e.target.value } }); toast('상태 변경: ' + e.target.value); state.dash = null; loadOrders(); }
   catch (err) { toast(err.message, true); }
 });
 $('#orders').addEventListener('click', async e => {
   const card = e.target.closest('.order'); if (!card) return;
   const no = card.dataset.no; const o = state.orders.find(x => x.orderNo === no);
-  if (e.target.classList.contains('cancelBtn')) {
-    if (!confirm(`${no} 주문을 취소할까요?`)) return;
-    try { await api('updateOrder', { orderNo: no, fields: { status: '취소' } }); toast('주문이 취소되었습니다'); loadOrders(); } catch (err) { toast(err.message, true); }
+  const sb = e.target.closest('.stBtn');
+  if (sb) {
+    const st = sb.dataset.st;
+    if (CONFIRM_MSG[st] && !confirm(`${no}\n${CONFIRM_MSG[st]}`)) return;
+    busy(sb, true, '처리 중');
+    try { await api('updateOrder', { orderNo: no, fields: { status: st } }); toast(st === '취소' ? '취소되었습니다' : '변경: ' + st); state.dash = null; loadOrders(); }
+    catch (err) { toast(err.message, true); busy(sb, false); }
+    return;
   }
   if (e.target.classList.contains('priceBtn')) {
     const v = prompt(`단가 수정 (${no})`, o.unitPrice); if (v === null) return;
@@ -557,6 +619,8 @@ $('#orders').addEventListener('click', async e => {
 /* ---------------- 대시보드 ---------------- */
 $('#dYear').addEventListener('change', () => { state.year = +$('#dYear').value; loadDash(); });
 $('#dBasis').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.basis = b.dataset.b; $$('#dBasis button').forEach(x => x.classList.toggle('on', x === b)); loadDash(); });
+$('#dPeriod').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.period = b.dataset.p; $$('#dPeriod button').forEach(x => x.classList.toggle('on', x === b)); renderStatTiles(); });
+$('#statTiles').addEventListener('click', e => { const t = e.target.closest('.tile'); if (!t) return; $('#lStatus').value = t.dataset.st; $('#lMonth').value = ''; showView('list'); });
 $('#dMetric').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.metric = b.dataset.m; $$('#dMetric button').forEach(x => x.classList.toggle('on', x === b)); renderDash(); });
 window.addEventListener('resize', () => { if (state.dash && !$('#v-dash').classList.contains('hidden')) renderChart(); });
 
@@ -582,8 +646,33 @@ function dashSeries() {
   return { series, codes };
 }
 
+function periodRange(p) {
+  const n = new Date(); let s, e;
+  if (p === 'week') { const dow = (n.getDay() + 6) % 7; s = new Date(n.getFullYear(), n.getMonth(), n.getDate() - dow); e = new Date(s); e.setDate(s.getDate() + 7); }
+  else if (p === 'month') { s = new Date(n.getFullYear(), n.getMonth(), 1); e = new Date(n.getFullYear(), n.getMonth() + 1, 1); }
+  else { s = new Date(n.getFullYear(), 0, 1); e = new Date(n.getFullYear() + 1, 0, 1); }
+  return [s, e];
+}
+function renderStatTiles() {
+  const d = state.dash; if (!d) return;
+  const [s, e] = periodRange(state.period);
+  const inP = o => { const t = new Date(o.createdAt); return t >= s && t < e; };
+  const cnt = st => d.orders.filter(o => o.status === st && inP(o)).length;
+  const allWait = d.orders.filter(o => o.status === '주문접수대기').length;
+  const allReq  = d.orders.filter(o => o.status === '취소요청').length;
+  const fmt = x => `${x.getMonth() + 1}.${x.getDate()}`; const e1 = new Date(e); e1.setDate(e1.getDate() - 1);
+  $('#dPeriodNote').textContent = ({ week: '이번 주', month: '이번 달', year: '올해' })[state.period] + ` (${fmt(s)} ~ ${fmt(e1)}) 접수 기준 · 타일을 누르면 목록으로 이동`;
+  const w = cnt('주문접수대기'), a = cnt('주문접수'), dn = cnt('출고완료'), r = cnt('취소요청');
+  $('#statTiles').innerHTML = `
+    <button class="tile wait" data-st="주문접수대기"><span class="t">신규주문 · 접수대기</span><span class="n">${w}<small>건</small></span><span class="s">${allWait !== w ? '전체 대기 ' + allWait + '건' : (state.user.role === 'admin' ? '접수 처리 필요' : '본사 접수 대기중')}</span></button>
+    <button class="tile acc" data-st="주문접수"><span class="t">주문접수 완료</span><span class="n">${a}<small>건</small></span><span class="s">제작·출고 진행중</span></button>
+    <button class="tile done" data-st="출고완료"><span class="t">출고완료</span><span class="n">${dn}<small>건</small></span><span class="s">기간 내 접수된 주문 중</span></button>
+    <button class="tile cxl" data-st="취소요청"><span class="t">취소요청</span><span class="n">${r}<small>건</small></span><span class="s">${allReq !== r ? '전체 ' + allReq + '건' : (state.user.role === 'admin' ? '승인 필요' : '본사 승인 대기')}</span></button>`;
+}
 function renderDash() {
   const d = state.dash; if (!d) return;
+  renderStatTiles();
+  const mw = moneyWord();
   const now = new Date(); const thisM = ymd(now.getFullYear(), now.getMonth() + 1, 1).slice(0, 7);
   const prevD = new Date(now.getFullYear(), now.getMonth() - 1, 1); const prevM = ymd(prevD.getFullYear(), prevD.getMonth() + 1, 1).slice(0, 7);
   const sum = (m, k) => Object.keys(d.matrix).reduce((s, c) => s + ((d.matrix[c][m] || {})[k] || 0), 0);
@@ -592,9 +681,9 @@ function renderDash() {
   const inYear = thisM.slice(0, 4) === String(d.year);
   $('#kpis').innerHTML = `
     <div class="kpi"><div class="label">이번 달 주문</div><div class="v">${inYear ? num(sum(thisM, 'qty')) + '<span style="font-size:14px;font-weight:600"> 개</span>' : '—'}</div><div class="d">${inYear ? num(sum(thisM, 'count')) + '건 · ' + delta(sum(thisM, 'qty'), sum(prevM, 'qty')) : d.year + '년 데이터'}</div></div>
-    <div class="kpi"><div class="label">이번 달 매출</div><div class="v">${inYear ? won(sum(thisM, 'revenue')) : '—'}</div><div class="d">${inYear ? delta(sum(thisM, 'revenue'), sum(prevM, 'revenue')) : ''}</div></div>
+    <div class="kpi"><div class="label">이번 달 ${mw}</div><div class="v">${inYear ? won(sum(thisM, 'revenue')) : '—'}</div><div class="d">${inYear ? delta(sum(thisM, 'revenue'), sum(prevM, 'revenue')) : ''}</div></div>
     <div class="kpi"><div class="label">${d.year}년 누계 주문</div><div class="v">${num(yearSum('qty'))}<span style="font-size:14px;font-weight:600"> 개</span></div><div class="d">${num(yearSum('count'))}건</div></div>
-    <div class="kpi"><div class="label">${d.year}년 누계 매출</div><div class="v">${won(yearSum('revenue'))}</div><div class="d">${Object.keys(d.matrix).length}개 지점 주문</div></div>`;
+    <div class="kpi"><div class="label">${d.year}년 누계 ${mw}</div><div class="v">${won(yearSum('revenue'))}</div><div class="d">${state.user.role === 'admin' ? Object.keys(d.matrix).length + '개 지점 주문' : ''}</div></div>`;
   renderChart(); renderDashTable();
 }
 
@@ -636,7 +725,7 @@ function renderChart() {
     bars += `<rect class="hit" data-i="${i}" x="${pad.l + gw * i}" y="${pad.t}" width="${gw}" height="${ih}" fill="transparent"/>`;
     g += `<text x="${pad.l + gw * i + gw / 2}" y="${H - 8}" text-anchor="middle" font-size="11" fill="#8f8a80">${+m.slice(5)}월</text>`;
   });
-  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="월별 ${isRev ? '매출액' : '주문수량'}">${g}${bars}</svg>` + tip.outerHTML;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="월별 ${isRev ? moneyWord() : '주문수량'}">${g}${bars}</svg>` + tip.outerHTML;
   const svg = el.querySelector('svg'); const t = $('#dTip');
   const showTip = target => {
     const hit = target && target.closest('.hit, .bar'); if (!hit) { t.style.opacity = 0; return; }
@@ -699,12 +788,12 @@ function demoApi(action, p) {
       const o = p.order; const acc = u.role === 'admin' && o.branchCode ? db.accounts.find(a => a.code === o.branchCode) : u;
       const unit = u.role === 'admin' && o.unitPrice >= 0 ? o.unitPrice : (db.products.find(x => x.name === o.product) || {}).price || 0;
       const no = 'PF-' + new Date().toISOString().slice(2, 10).replace(/-/g, '') + '-' + String(db.orders.length + 1).padStart(3, '0');
-      db.orders.unshift({ orderNo: no, createdAt: new Date().toISOString().slice(0, 19), branchCode: acc.code, branchName: acc.name, customer: o.customer, product: o.product, fabric: o.fabric, mattressSize: o.mattressSize, mattressHeight: o.mattressHeight, deliveryDate: o.deliveryDate, qty: o.qty, unitPrice: unit, amount: unit * o.qty, status: '접수', memo: '' });
+      db.orders.unshift({ orderNo: no, createdAt: new Date().toISOString().slice(0, 19), branchCode: acc.code, branchName: acc.name, customer: o.customer, product: o.product, fabric: o.fabric, mattressSize: o.mattressSize, mattressHeight: o.mattressHeight, deliveryDate: o.deliveryDate, qty: o.qty, unitPrice: unit, amount: unit * o.qty, status: '주문접수대기', memo: '' });
       save(); return resp({ ok: true, orderNo: no });
     }
     case 'listOrders': return resp({ ok: true, orders: db.orders.filter(o => mine(o) && (!p.branchCode || o.branchCode === p.branchCode) && (!p.month || o.createdAt.slice(0, 7) === p.month) && (!p.status || o.status === p.status)) });
     case 'updateOrder': { const o = db.orders.find(x => x.orderNo === p.orderNo); if (!o || !mine(o)) return fail('권한 없음');
-      if (u.role !== 'admin' && !(p.fields.status === '취소' && o.status === '접수')) return fail('접수 상태의 주문만 취소할 수 있어요.');
+      if (u.role !== 'admin') { const ok = (p.fields.status === '취소' && o.status === '주문접수대기') || (p.fields.status === '취소요청' && o.status === '주문접수') || (p.fields.status === '주문접수' && o.status === '취소요청'); if (!ok) return fail('이 상태에서는 변경할 수 없어요.'); }
       Object.assign(o, p.fields); if (p.fields.unitPrice !== undefined || p.fields.qty !== undefined) o.amount = o.unitPrice * o.qty; save(); return resp({ ok: true }); }
     case 'dashboard': {
       const year = String(p.year || new Date().getFullYear()); const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
@@ -712,21 +801,21 @@ function demoApi(action, p) {
       db.orders.filter(o => mine(o) && o.status !== '취소').forEach(o => { const d = p.basis === 'delivery' ? o.deliveryDate : o.createdAt.slice(0, 10); if (d.slice(0, 4) !== year) return;
         branches[o.branchCode] = o.branchName; matrix[o.branchCode] = matrix[o.branchCode] || {}; const c = matrix[o.branchCode][d.slice(0, 7)] = matrix[o.branchCode][d.slice(0, 7)] || { count: 0, qty: 0, revenue: 0 }; c.count++; c.qty += o.qty; c.revenue += o.amount; });
       if (u.role === 'admin') db.accounts.filter(a => a.role !== 'admin').forEach(a => branches[a.code] = branches[a.code] || a.name);
-      return resp({ ok: true, year, basis: p.basis, months, branches, matrix, years: [String(+year - 1), year] });
+      return resp({ ok: true, year, basis: p.basis, months, branches, matrix, years: [String(+year - 1), year], orders: db.orders.filter(mine) });
     }
   }
   return fail('알 수 없는 action');
-  function save() { sessionStorage.setItem('pf_demo', JSON.stringify(db)); }
+  function save() { sessionStorage.setItem('pf_demo3', JSON.stringify(db)); }
 }
 function demoDb() {
-  const c = sessionStorage.getItem('pf_demo'); if (c) return JSON.parse(c);
+  const c = sessionStorage.getItem('pf_demo3'); if (c) return JSON.parse(c);
   const accounts = [{ code: 'admin', name: 'EMK BED 본사', role: 'admin', use: 'Y' }, { code: 'PT-GD', name: '씰리 평택 고덕점', role: 'branch', use: 'Y' }, { code: 'SW-YT', name: '씰리 수원 영통점', role: 'branch', use: 'Y' }, { code: 'YI-GH', name: '씰리 용인 기흥점', role: 'branch', use: 'Y' }];
   const products = [{ name: '스퀘어22', price: 350000 }, { name: '스퀘어', price: 330000 }, { name: '셀레나', price: 390000 }, { name: '솔루나', price: 690000 }, { name: '커브', price: 590000 }];
   const orders = []; let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
   const y = new Date().getFullYear(); const nowM = new Date().getMonth();
   for (let m = 0; m <= nowM; m++) for (const a of accounts.slice(1)) { const n = Math.floor(rnd() * 5) + (a.code === 'PT-GD' ? 2 : 0); for (let k = 0; k < n; k++) {
     const pr = products[Math.floor(rnd() * products.length)]; const day = Math.floor(rnd() * 27) + 1; const qty = rnd() > .85 ? 2 : 1;
-    orders.push({ orderNo: `PF-${String(y).slice(2)}${String(m + 1).padStart(2, '0')}${String(day).padStart(2, '0')}-${String(k + 1).padStart(3, '0')}`, createdAt: `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${10 + Math.floor(rnd() * 8)}:${String(Math.floor(rnd() * 60)).padStart(2, '0')}:00`, branchCode: a.code, branchName: a.name, customer: a.name.replace('씰리 ', '씰리').replace(/\s/g, ''), product: pr.name, fabric: pr.name.startsWith('스퀘어') ? 'ES-14 블랙' : 'ES-03 베이지', mattressSize: rnd() > .5 ? '1650-2080' : '1500-2000', mattressHeight: '34cm', deliveryDate: `${y}-${String(m + 1).padStart(2, '0')}-${String(Math.min(28, day + 7)).padStart(2, '0')}`, qty, unitPrice: pr.price, amount: pr.price * qty, status: m < nowM ? (rnd() > .08 ? '배송완료' : '취소') : ['접수', '제작중'][Math.floor(rnd() * 2)], memo: '' }); } }
+    orders.push({ orderNo: `PF-${String(y).slice(2)}${String(m + 1).padStart(2, '0')}${String(day).padStart(2, '0')}-${String(k + 1).padStart(3, '0')}`, createdAt: `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${10 + Math.floor(rnd() * 8)}:${String(Math.floor(rnd() * 60)).padStart(2, '0')}:00`, branchCode: a.code, branchName: a.name, customer: a.name.replace('씰리 ', '씰리').replace(/\s/g, ''), product: pr.name, fabric: pr.name.startsWith('스퀘어') ? 'ES-14 블랙' : 'ES-03 베이지', mattressSize: rnd() > .5 ? '1650-2080' : '1500-2000', mattressHeight: '34cm', deliveryDate: `${y}-${String(m + 1).padStart(2, '0')}-${String(Math.min(28, day + 7)).padStart(2, '0')}`, qty, unitPrice: pr.price, amount: pr.price * qty, status: m < nowM ? (rnd() > .08 ? '출고완료' : '취소') : ['주문접수대기', '주문접수', '취소요청', '주문접수'][Math.floor(rnd() * 4)], memo: '' }); } }
   orders.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return { accounts, products, orders, session: null };
 }
