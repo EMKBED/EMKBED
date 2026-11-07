@@ -101,6 +101,9 @@
   .order dd{margin:0}
   .order .foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px;flex-wrap:wrap}
   .amt{font-weight:700;font-variant-numeric:tabular-nums}
+  .order.cancelled .amt{text-decoration:line-through;color:var(--ink-3);font-weight:500}
+  .order.cancelled{background:#faf9f6}
+  .order.cancelled .name{color:var(--ink-3)}
   .order select{padding:6px 8px;border-radius:8px;border:1px solid var(--line);min-height:34px;background:#fff}
 
   /* ---------- 대시보드 ---------- */
@@ -161,10 +164,10 @@
     <h2 style="margin-top:18px">지점 로그인</h2>
     <div id="demoNote" class="demo hidden">데모 모드 — API_URL이 비어 있어 가짜 데이터로 동작합니다.<br>admin / 1234 또는 PT-GD / 1234</div>
     <form id="loginForm" class="field" style="gap:12px">
-      <div class="field"><label>지점코드</label><input id="lgCode" autocomplete="username" autocapitalize="off" placeholder="예: PT-GD"></div>
+      <div class="field"><label>지점코드</label><input id="lgCode" autocomplete="username" autocapitalize="off"></div>
       <div class="field"><label>비밀번호</label>
         <div class="pwwrap">
-          <input id="lgPw" type="text" class="masked" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="한글·영문·숫자 모두 가능">
+          <input id="lgPw" type="text" class="masked" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="">
           <button type="button" class="eye" id="pwEye" aria-label="비밀번호 보기">보기</button>
         </div>
       </div>
@@ -191,6 +194,7 @@
       <button data-v="dash">대시보드</button>
       <button data-v="acct" class="hidden adminOnly">지점계정</button>
       <button data-v="prod" class="hidden adminOnly">제품단가</button>
+      <button data-v="log" class="hidden adminOnly">로그</button>
     </nav>
   </header>
 
@@ -198,24 +202,6 @@
 
     <!-- ---------- 주문등록 ---------- -->
     <section id="v-new">
-      <div class="card">
-        <div class="label">빠른 입력</div>
-        <h2>주문 문자 붙여넣기</h2>
-        <div class="field">
-          <textarea id="pasteBox" rows="6" placeholder="카톡/문자로 받은 주문 내용을 그대로 붙여넣고 '자동 채우기'를 누르세요.
-
-고객명 : 씰리평택고덕
-제품 : 스퀘어 K (ES-14 블랙/다리없음바닥22cm)
-매트리스 사이즈 : 1650-2080
-매트리스 높이 : 34cm
-배송일 : 26년 10월 23일"></textarea>
-        </div>
-        <div class="row" style="margin-top:10px">
-          <button class="btn ghost" id="parseBtn" type="button">자동 채우기 ↓</button>
-          <span class="muted" id="parseMsg"></span>
-        </div>
-      </div>
-
       <form class="card" id="orderForm">
         <div class="label">주문 내용</div>
         <h2>프레임 주문</h2>
@@ -225,12 +211,12 @@
           <select id="fBranch"></select>
         </div>
 
-        <div class="field"><label>1. 고객명 *</label><input id="fCustomer" required placeholder="예: 씰리평택고덕 / 김OO 고객"></div>
+        <div class="field"><label>1. 고객명 *</label><input id="fCustomer" required></div>
         <div class="field" style="margin-top:12px"><label>2. 제품명 *</label><select id="fProduct" required></select></div>
-        <div class="field" style="margin-top:12px"><label>3. 원단</label><input id="fFabric" placeholder="예: ES-14 블랙"></div>
+        <div class="field" style="margin-top:12px"><label>3. 원단</label><input id="fFabric"></div>
         <div class="grid2" style="margin-top:12px">
-          <div class="field"><label>4. 매트리스 사이즈</label><input id="fSize" placeholder="예: 1650-2080" inputmode="numeric"></div>
-          <div class="field"><label>5. 매트리스 높이</label><input id="fHeight" placeholder="예: 34cm"></div>
+          <div class="field"><label>4. 매트리스 사이즈</label><input id="fSize"></div>
+          <div class="field"><label>5. 매트리스 높이</label><input id="fHeight"></div>
         </div>
         <div class="field" style="margin-top:12px"><label>6. 배송일 *</label><input id="fDate" type="date" required></div>
 
@@ -260,7 +246,7 @@
           <div class="field" style="min-width:130px"><label>상태</label>
             <select id="lStatus"><option value="">전체</option><option>주문접수대기</option><option>주문접수</option><option>출고완료</option><option>취소요청</option><option>취소</option></select>
           </div>
-          <div class="field grow"><label>검색</label><input id="lSearch" placeholder="고객명·주문번호·제품"></div>
+          <div class="field grow"><label>검색</label><input id="lSearch" placeholder="검색어"></div>
         </div>
         <div class="muted" id="listSummary" style="margin:12px 0 10px"></div>
         <div class="row adminOnly hidden bulkbar" id="bulkbar">
@@ -315,10 +301,10 @@
         <div class="label">관리자</div>
         <h2>지점계정</h2>
         <form id="acctForm" class="grid2" style="margin-bottom:16px">
-          <div class="field"><label>지점코드 (로그인 ID) *</label><input id="aCode" required placeholder="예: 평택고덕 / PT-GD" autocapitalize="off"></div>
-          <div class="field"><label>지점명 *</label><input id="aName" required placeholder="예: 씰리 평택 고덕점"></div>
+          <div class="field"><label>지점코드 (로그인 ID) *</label><input id="aCode" required autocapitalize="off"></div>
+          <div class="field"><label>지점명 *</label><input id="aName" required></div>
           <div class="field"><label>비밀번호 *</label><input id="aPw" required placeholder="4자 이상" autocomplete="new-password"></div>
-          <div class="field"><label>메모</label><input id="aMemo" placeholder="담당자, 연락처 등"></div>
+          <div class="field"><label>메모</label><input id="aMemo"></div>
           <div class="row" style="grid-column:1/-1;justify-content:space-between">
             <span class="muted">지점코드는 집계 키라 생성 후 바꾸지 마세요. 한글 가능.</span>
             <button class="btn" type="submit" id="acctAddBtn">지점 추가</button>
@@ -329,15 +315,33 @@
       </div>
     </section>
 
+    <!-- ---------- 행동 로그 (관리자) ---------- -->
+    <section id="v-log" class="hidden">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div><div class="label">이력 추적</div><h2 style="margin-bottom:0">행동 로그</h2></div>
+          <button class="btn ghost sm" id="reloadLog">새로고침</button>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <div class="field" style="min-width:150px"><label>계정</label><select id="logWho"><option value="">전체</option></select></div>
+          <div class="field" style="min-width:140px"><label>행동</label><select id="logAct"><option value="">전체</option></select></div>
+          <div class="field grow"><label>검색</label><input id="logSearch" placeholder="주문번호·고객명·내용"></div>
+        </div>
+        <div class="muted" id="logSummary" style="margin:12px 0 8px"></div>
+        <div class="tbl-wrap" id="logTable"></div>
+        <div class="muted" style="margin-top:8px">최근 300건. 전체 기록은 구글시트 <b>로그</b> 탭에 남습니다.</div>
+      </div>
+    </section>
+
     <!-- ---------- 제품단가 (관리자) ---------- -->
     <section id="v-prod" class="hidden">
       <div class="card">
         <div class="label">관리자</div>
         <h2>제품단가</h2>
         <form id="prodForm" class="grid2" style="margin-bottom:16px">
-          <div class="field"><label>제품명 *</label><input id="pName" required placeholder="예: 스퀘어22"></div>
-          <div class="field"><label>단가 (원) *</label><input id="pPrice" required inputmode="numeric" placeholder="예: 350000"></div>
-          <div class="field" style="grid-column:1/-1"><label>비고</label><input id="pNote" placeholder="예: 다리없음 바닥22cm"></div>
+          <div class="field"><label>제품명 *</label><input id="pName" required></div>
+          <div class="field"><label>단가 (원) *</label><input id="pPrice" required inputmode="numeric"></div>
+          <div class="field" style="grid-column:1/-1"><label>비고</label><input id="pNote"></div>
           <div class="row" style="grid-column:1/-1;justify-content:space-between">
             <span class="muted">글자+숫자 이름(스퀘어22)이면 주문문자 자동 채우기가 숫자까지 보고 고릅니다.</span>
             <button class="btn" type="submit" id="prodAddBtn">제품 추가</button>
@@ -361,9 +365,9 @@
 /* =========================================================
    설정 — Apps Script 웹앱 URL을 여기에 붙이세요
    ========================================================= */
-const API_URL = 'https://script.google.com/macros/s/AKfycbzJUZMUIozkoUghM2v4N6lggSw60fWYjnODoUkaokUcUJ76nOS1dnmUAmmbaQWKkkBe/exec';   // 예: 'https://script.google.com/macros/s/AKfy.../exec'
+const API_URL = 'https://script.google.com/macros/s/AKfycbwYQUtFA9Sw28EU28vb96OzPYWd7FmzJ14c2RAxTqz1-YcB01yk1xgAVWfoDknH_rk/exec';   // 예: 'https://script.google.com/macros/s/AKfy.../exec'
 const APP_NAME = 'EMK BED';
-const VERSION  = 'v1.4.1';   // 수정할 때마다 올려주세요 (지점 화면 하단 상태바에 표시)
+const VERSION  = 'v1.5.1';   // 수정할 때마다 올려주세요 (지점 화면 하단 상태바에 표시)
 
 /* ========================================================= */
 const DEMO = !API_URL;
@@ -493,78 +497,13 @@ function buildMonthSelect() {
 $('#nav').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showView(b.dataset.v); });
 function showView(v) {
   $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
-  ['new','list','dash','acct','prod'].forEach(k => $('#v-' + k).classList.toggle('hidden', k !== v));
+  ['new','list','dash','acct','prod','log'].forEach(k => $('#v-' + k).classList.toggle('hidden', k !== v));
   if (v === 'list') loadOrders();
   if (v === 'prod') loadProductsAdmin().catch(err => toast(err.message, true));
+  if (v === 'log') loadLogs();
   if (v === 'acct') loadAccounts().catch(err => toast(err.message, true));
   if (v === 'dash') { if (!state.dash) { $('#statTiles').innerHTML = '<div class="loading-note" style="grid-column:1/-1"><span class="spinner"></span>불러오는 중…</div>'; $('#kpis').innerHTML = ''; } loadDash(); }
   window.scrollTo({ top: 0 });
-}
-
-/* ---------------- 주문 문자 파싱 ---------------- */
-$('#parseBtn').addEventListener('click', () => {
-  const r = parseOrderText($('#pasteBox').value);
-  if (!r.any) { $('#parseMsg').textContent = '인식할 항목이 없어요. 형식을 확인해주세요.'; return; }
-  if (r.customer) $('#fCustomer').value = r.customer;
-  if (r.productRaw) {
-    const m = matchProduct(r.productRaw);
-    if (m.product) { $('#fProduct').value = m.product; syncPrice(); }
-    $('#fFabric').value = r.fabric || m.fabric;
-    if (!m.product) $('#parseMsg').textContent = `제품 "${r.productRaw}" 을(를) 목록에서 못 찾았어요. 직접 선택해주세요.`;
-  } else if (r.fabric) $('#fFabric').value = r.fabric;
-  if (r.size)   $('#fSize').value = r.size;
-  if (r.height) $('#fHeight').value = r.height;
-  if (r.date)   $('#fDate').value = r.date;
-  if (r.qty)    $('#fQty').value = r.qty;
-  calcAmount();
-  if (!$('#parseMsg').textContent) $('#parseMsg').textContent = '채웠어요. 내용 확인 후 등록하세요.';
-  $('#fCustomer').focus();
-});
-
-function parseOrderText(txt) {
-  const out = { any: false };
-  const lines = txt.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  const grab = (re) => { for (const l of lines) { const m = l.match(re); if (m) return m[1].trim(); } return ''; };
-  out.customer   = grab(/^고객\s*명?\s*[:：]\s*(.+)$/);
-  out.productRaw = grab(/^제품\s*(?:명)?\s*[:：]\s*(.+)$/);
-  out.fabric     = grab(/^(?:원단|패브릭|가죽|컬러|색상)\s*[:：]\s*(.+)$/);
-  out.size       = grab(/^매트(?:리스)?\s*사이즈\s*[:：]\s*(.+)$/) || grab(/^사이즈\s*[:：]\s*(.+)$/);
-  out.height     = grab(/^매트(?:리스)?\s*높이\s*[:：]\s*(.+)$/) || grab(/^높이\s*[:：]\s*(.+)$/);
-  const dateRaw  = grab(/^배송\s*(?:일|날짜|요청일)?\s*[:：]\s*(.+)$/);
-  out.date       = parseKDate(dateRaw);
-  const q = grab(/^수량\s*[:：]\s*(\d+)/); out.qty = q ? parseInt(q, 10) : 0;
-  out.any = !!(out.customer || out.productRaw || out.fabric || out.size || out.height || out.date);
-  return out;
-}
-function parseKDate(s) {
-  if (!s) return '';
-  const now = new Date();
-  let m = s.match(/(\d{2,4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일?/);
-  if (m) { let y = +m[1]; if (y < 100) y += 2000; return ymd(y, +m[2], +m[3]); }
-  m = s.match(/(\d{4})[.\-\/]\s*(\d{1,2})[.\-\/]\s*(\d{1,2})/);
-  if (m) return ymd(+m[1], +m[2], +m[3]);
-  m = s.match(/(\d{2})[.\-\/]\s*(\d{1,2})[.\-\/]\s*(\d{1,2})/);
-  if (m) return ymd(2000 + +m[1], +m[2], +m[3]);
-  m = s.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일?/) || s.match(/^(\d{1,2})[.\/](\d{1,2})/);
-  if (m) return ymd(now.getFullYear(), +m[1], +m[2]);
-  return '';
-}
-const ymd = (y, m, d) => `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-function matchProduct(raw) {
-  // "스퀘어 K (ES-14 블랙/다리없음바닥22cm)" → 제품 '스퀘어22' (이름의 글자 부분이 앞에 오고, 숫자 부분이 본문 어딘가에 있으면 우선)
-  const norm = s => String(s).replace(/\s+/g, '').toLowerCase();
-  const r = norm(raw);
-  const paren = raw.match(/\(([^)]*)\)/);           // 괄호 안 = 원단/사양 후보
-  const fabric = paren ? paren[1].split('/')[0].trim() : '';
-  let best = null, bestScore = 0;
-  state.products.forEach(p => {
-    const n = norm(p.name); const letters = n.replace(/[\d.]+/g, ''); const digits = n.match(/[\d.]+/g) || [];
-    if (!letters || r.indexOf(letters) !== 0) return;
-    let score = letters.length + 1;
-    if (digits.length) { if (digits.every(d => r.indexOf(d) >= 0)) score += 10; else score -= 5; }
-    if (score > bestScore) { bestScore = score; best = p.name; }
-  });
-  return { product: best || '', fabric };
 }
 
 /* ---------------- 주문 폼 ---------------- */
@@ -594,8 +533,8 @@ $('#orderForm').addEventListener('submit', async e => {
   try {
     const r = await api('createOrder', { order });
     toast(`저장 완료 · ${r.orderNo}`);
-    ['fCustomer','fFabric','fSize','fHeight','fDate','pasteBox'].forEach(id => $('#' + id).value = '');
-    $('#fQty').value = 1; $('#fProduct').value = ''; syncPrice(); $('#parseMsg').textContent = '';
+    ['fCustomer','fFabric','fSize','fHeight','fDate'].forEach(id => $('#' + id).value = '');
+    $('#fQty').value = 1; $('#fProduct').value = ''; syncPrice();
   } catch (err) { toast(err.message, true); }
   finally { busy(btn, false); }
 });
@@ -621,7 +560,7 @@ function renderOrders() {
   if (!list.length) { $('#orders').innerHTML = '<div class="muted">주문이 없습니다.</div>'; return; }
   $('#chkAll').checked = false; updateSel();
   $('#orders').innerHTML = list.map(o => `
-    <div class="order" data-no="${esc(o.orderNo)}">
+    <div class="order${o.status === '취소' ? ' cancelled' : ''}" data-no="${esc(o.orderNo)}">
       <div class="top">
         ${admin ? `<label class="chk"><input type="checkbox" class="selChk" ${o.status === '취소' ? 'disabled' : ''}></label>` : ''}
         <div class="grow"><div class="no">${esc(o.orderNo)} · ${fmtDT(o.createdAt)}${admin ? ' · <b>' + esc(o.branchName) + '</b>' : ''}</div>
@@ -873,6 +812,31 @@ $('#acctTable').addEventListener('click', async e => {
   }
 });
 
+/* ---------------- 행동 로그 (관리자) ---------------- */
+$('#reloadLog').addEventListener('click', loadLogs);
+['logWho','logAct'].forEach(id => $('#' + id).addEventListener('change', renderLogs));
+$('#logSearch').addEventListener('input', renderLogs);
+async function loadLogs() {
+  $('#logTable').innerHTML = '<div class="loading-note" style="padding:14px"><span class="spinner"></span>불러오는 중…</div>';
+  try {
+    const r = await api('logs', { limit: 300 }); state.logs = r.logs;
+    const who = [...new Set(r.logs.map(l => l.code))].filter(Boolean);
+    const acts = [...new Set(r.logs.map(l => l.action))].filter(Boolean);
+    const keep = (sel, list) => { const v = sel.value; sel.innerHTML = '<option value="">전체</option>' + list.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join(''); sel.value = list.includes(v) ? v : ''; };
+    keep($('#logWho'), who); keep($('#logAct'), acts);
+    renderLogs();
+  } catch (err) { $('#logTable').innerHTML = ''; toast(err.message, true); }
+}
+function renderLogs() {
+  const who = $('#logWho').value, act = $('#logAct').value, q = $('#logSearch').value.trim().toLowerCase();
+  const list = (state.logs || []).filter(l => (!who || l.code === who) && (!act || l.action === act) && (!q || [l.target, l.detail, l.name].join(' ').toLowerCase().includes(q)));
+  $('#logSummary').textContent = `${list.length}건`;
+  const actCls = a => /실패|삭제/.test(a) ? 'color:var(--bad)' : /등록|생성|추가/.test(a) ? 'color:var(--ok)' : /변경|수정/.test(a) ? 'color:#2a5db0' : 'color:var(--ink-2)';
+  $('#logTable').innerHTML = `<table style="min-width:640px"><thead><tr><th style="text-align:left">일시</th><th style="text-align:left">계정</th><th style="text-align:left">행동</th><th style="text-align:left">대상</th><th style="text-align:left">상세</th></tr></thead><tbody>
+    ${list.map(l => `<tr><td style="text-align:left;font-weight:400;color:var(--ink-3)">${esc(fmtDT(l.at))}</td><td style="text-align:left">${esc(l.name || l.code)}<span class="sub">${esc(l.code)}</span></td><td style="text-align:left;font-weight:600;${actCls(l.action)}">${esc(l.action)}</td><td style="text-align:left">${esc(l.target)}</td><td style="text-align:left;white-space:normal;min-width:220px;font-weight:400">${esc(l.detail)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted" style="text-align:center">기록 없음</td></tr>'}
+  </tbody></table>`;
+}
+
 /* ---------------- 제품단가 (관리자) ---------------- */
 function renderProducts() {
   const list = state.productsAll || [];
@@ -908,6 +872,7 @@ $('#prodTable').addEventListener('click', async e => {
 });
 
 /* ---------------- 유틸 ---------------- */
+const ymd = (y, m, d) => `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function fmtDT(iso) { if (!iso) return ''; const [d, t] = iso.split('T'); return d.slice(2).replace(/-/g, '.') + (t ? ' ' + t.slice(0, 5) : ''); }
 
@@ -919,7 +884,7 @@ function demoApi(action, p) {
   if (action === 'login') {
     const a = db.accounts.find(x => x.code === p.branchCode && p.password === '1234');
     if (!a) return fail('지점코드 또는 비밀번호가 맞지 않습니다 (데모: admin / 1234)');
-    db.session = a; save(); return resp({ ok: true, token: 'demo', user: a });
+    db.session = a; db.logs.unshift({ at: new Date().toISOString().slice(0, 19), code: a.code, name: a.name, action: '로그인', target: a.code, detail: '' }); save(); return resp({ ok: true, token: 'demo', user: a });
   }
   const u = db.session; if (!u) return fail('AUTH');
   const mine = o => u.role === 'admin' || o.branchCode === u.code;
@@ -932,18 +897,21 @@ function demoApi(action, p) {
     case 'deleteAccount': { if (p.code === u.code) return fail('본인 계정은 삭제할 수 없어요'); db.accounts = db.accounts.filter(a => a.code !== p.code || a.role === 'admin'); save(); return resp({ ok: true }); }
     case 'upsertProduct': { const q = p.product; const price = Number(String(q.price).replace(/[^\d]/g, '')) || 0; let x = db.products.find(z => z.name === q.name); if (x) Object.assign(x, q, { price }); else db.products.push({ ...q, price }); save(); return resp({ ok: true }); }
     case 'deleteProduct': db.products = db.products.filter(z => z.name !== p.name); save(); return resp({ ok: true });
-    case 'bulkStatus': { let n = 0; db.orders.forEach(o => { if (p.orderNos.includes(o.orderNo)) { o.status = p.status; n++; } }); save(); return resp({ ok: true, updated: n }); }
+    case 'bulkStatus': { let n = 0; db.orders.forEach(o => { if (p.orderNos.includes(o.orderNo)) { o.status = p.status; n++; } }); db.logs.unshift({ at: new Date().toISOString().slice(0, 19), code: u.code, name: u.name, action: '일괄상태변경', target: n + '건', detail: '→ ' + p.status }); save(); return resp({ ok: true, updated: n }); }
+    case 'logs': return resp({ ok: true, logs: db.logs });
     case 'createOrder': {
       const o = p.order; const acc = u.role === 'admin' && o.branchCode ? db.accounts.find(a => a.code === o.branchCode) : u;
       const unit = u.role === 'admin' && o.unitPrice >= 0 ? o.unitPrice : (db.products.find(x => x.name === o.product) || {}).price || 0;
-      const no = 'PF-' + new Date().toISOString().slice(2, 10).replace(/-/g, '') + '-' + String(db.orders.length + 1).padStart(3, '0');
+      const no = new Date().toISOString().slice(2, 10).replace(/-/g, '') + '-' + String(db.orders.length + 1).padStart(3, '0');
+      db.logs.unshift({ at: new Date().toISOString().slice(0, 19), code: u.code, name: u.name, action: '주문등록', target: no, detail: `${acc.name} / ${o.customer} / ${o.product} ${o.fabric || ''}` });
       db.orders.unshift({ orderNo: no, createdAt: new Date().toISOString().slice(0, 19), branchCode: acc.code, branchName: acc.name, customer: o.customer, product: o.product, fabric: o.fabric, mattressSize: o.mattressSize, mattressHeight: o.mattressHeight, deliveryDate: o.deliveryDate, qty: o.qty, unitPrice: unit, amount: unit * o.qty, status: '주문접수대기', memo: '' });
       save(); return resp({ ok: true, orderNo: no });
     }
     case 'listOrders': return resp({ ok: true, orders: db.orders.filter(o => mine(o) && (!p.branchCode || o.branchCode === p.branchCode) && (!p.month || o.createdAt.slice(0, 7) === p.month) && (!p.status || o.status === p.status)) });
     case 'updateOrder': { const o = db.orders.find(x => x.orderNo === p.orderNo); if (!o || !mine(o)) return fail('권한 없음');
       if (u.role !== 'admin') { const ok = (p.fields.status === '취소' && o.status === '주문접수대기') || (p.fields.status === '취소요청' && o.status === '주문접수') || (p.fields.status === '주문접수' && o.status === '취소요청'); if (!ok) return fail('이 상태에서는 변경할 수 없어요.'); }
-      Object.assign(o, p.fields); if (p.fields.unitPrice !== undefined || p.fields.qty !== undefined) o.amount = o.unitPrice * o.qty; save(); return resp({ ok: true }); }
+      const before = o.status; Object.assign(o, p.fields); if (p.fields.unitPrice !== undefined || p.fields.qty !== undefined) o.amount = o.unitPrice * o.qty;
+      db.logs.unshift({ at: new Date().toISOString().slice(0, 19), code: u.code, name: u.name, action: '상태변경', target: o.orderNo, detail: `${before} → ${o.status} (${o.customer})` }); save(); return resp({ ok: true }); }
     case 'dashboard': {
       const year = String(p.year || new Date().getFullYear()); const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
       const branches = {}, matrix = {};
@@ -954,19 +922,19 @@ function demoApi(action, p) {
     }
   }
   return fail('알 수 없는 action');
-  function save() { sessionStorage.setItem('pf_demo4', JSON.stringify(db)); }
+  function save() { sessionStorage.setItem('pf_demo5', JSON.stringify(db)); }
 }
 function demoDb() {
-  const c = sessionStorage.getItem('pf_demo4'); if (c) return JSON.parse(c);
+  const c = sessionStorage.getItem('pf_demo5'); if (c) return JSON.parse(c);
   const accounts = [{ code: 'admin', name: 'EMK BED 본사', role: 'admin', use: 'Y', password: '1234' }, { code: 'PT-GD', name: '씰리 평택 고덕점', role: 'branch', use: 'Y' }, { code: 'SW-YT', name: '씰리 수원 영통점', role: 'branch', use: 'Y' }, { code: 'YI-GH', name: '씰리 용인 기흥점', role: 'branch', use: 'Y' }];
   const products = [{ name: '스퀘어22', price: 350000 }, { name: '스퀘어', price: 330000 }, { name: '셀레나', price: 390000 }, { name: '솔루나', price: 690000 }, { name: '커브', price: 590000 }];
   const orders = []; let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
   const y = new Date().getFullYear(); const nowM = new Date().getMonth();
   for (let m = 0; m <= nowM; m++) for (const a of accounts.slice(1)) { const n = Math.floor(rnd() * 5) + (a.code === 'PT-GD' ? 2 : 0); for (let k = 0; k < n; k++) {
     const pr = products[Math.floor(rnd() * products.length)]; const day = Math.floor(rnd() * 27) + 1; const qty = rnd() > .85 ? 2 : 1;
-    orders.push({ orderNo: `PF-${String(y).slice(2)}${String(m + 1).padStart(2, '0')}${String(day).padStart(2, '0')}-${String(k + 1).padStart(3, '0')}`, createdAt: `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${10 + Math.floor(rnd() * 8)}:${String(Math.floor(rnd() * 60)).padStart(2, '0')}:00`, branchCode: a.code, branchName: a.name, customer: a.name.replace('씰리 ', '씰리').replace(/\s/g, ''), product: pr.name, fabric: pr.name.startsWith('스퀘어') ? 'ES-14 블랙' : 'ES-03 베이지', mattressSize: rnd() > .5 ? '1650-2080' : '1500-2000', mattressHeight: '34cm', deliveryDate: `${y}-${String(m + 1).padStart(2, '0')}-${String(Math.min(28, day + 7)).padStart(2, '0')}`, qty, unitPrice: pr.price, amount: pr.price * qty, status: m < nowM ? (rnd() > .08 ? '출고완료' : '취소') : ['주문접수대기', '주문접수', '취소요청', '주문접수'][Math.floor(rnd() * 4)], memo: '' }); } }
+    orders.push({ orderNo: `${String(y).slice(2)}${String(m + 1).padStart(2, '0')}${String(day).padStart(2, '0')}-${String(k + 1).padStart(3, '0')}`, createdAt: `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${10 + Math.floor(rnd() * 8)}:${String(Math.floor(rnd() * 60)).padStart(2, '0')}:00`, branchCode: a.code, branchName: a.name, customer: a.name.replace('씰리 ', '씰리').replace(/\s/g, ''), product: pr.name, fabric: pr.name.startsWith('스퀘어') ? 'ES-14 블랙' : 'ES-03 베이지', mattressSize: rnd() > .5 ? '1650-2080' : '1500-2000', mattressHeight: '34cm', deliveryDate: `${y}-${String(m + 1).padStart(2, '0')}-${String(Math.min(28, day + 7)).padStart(2, '0')}`, qty, unitPrice: pr.price, amount: pr.price * qty, status: m < nowM ? (rnd() > .08 ? '출고완료' : '취소') : ['주문접수대기', '주문접수', '취소요청', '주문접수'][Math.floor(rnd() * 4)], memo: '' }); } }
   orders.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return { accounts, products, orders, session: null };
+  return { accounts, products, orders, logs: [], session: null };
 }
 
 boot();
