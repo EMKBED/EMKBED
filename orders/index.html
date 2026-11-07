@@ -143,6 +143,10 @@
   .tbl-wrap input.cell{width:100%;min-width:90px;padding:6px 8px;border:1px solid transparent;border-radius:6px;background:transparent;font:inherit;text-align:inherit}
   .tbl-wrap input.cell:focus{border-color:var(--ink);background:#fff;outline:none}
   .tbl-wrap td.act{white-space:nowrap}
+  .pwwrap{position:relative}
+  .pwwrap input{padding-right:58px}
+  .masked{-webkit-text-security:disc;text-security:disc}
+  .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--ink-3);font-size:12.5px;font-weight:600;padding:8px;cursor:pointer}
   .demo{background:#fff3cd;color:#6b4e00;border:1px solid #f0dc9c;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px}
 </style>
 </head>
@@ -158,7 +162,12 @@
     <div id="demoNote" class="demo hidden">데모 모드 — API_URL이 비어 있어 가짜 데이터로 동작합니다.<br>admin / 1234 또는 PT-GD / 1234</div>
     <form id="loginForm" class="field" style="gap:12px">
       <div class="field"><label>지점코드</label><input id="lgCode" autocomplete="username" autocapitalize="off" placeholder="예: PT-GD"></div>
-      <div class="field"><label>비밀번호</label><input id="lgPw" type="password" autocomplete="current-password"></div>
+      <div class="field"><label>비밀번호</label>
+        <div class="pwwrap">
+          <input id="lgPw" type="text" class="masked" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="한글·영문·숫자 모두 가능">
+          <button type="button" class="eye" id="pwEye" aria-label="비밀번호 보기">보기</button>
+        </div>
+      </div>
       <button class="btn" id="lgBtn" type="submit">로그인</button>
       <div class="muted" style="text-align:center">로그인 후 1개월간 자동 로그인됩니다</div>
       <div id="lgMsg" class="muted" style="color:var(--bad)"></div>
@@ -354,7 +363,7 @@
    ========================================================= */
 const API_URL = 'https://script.google.com/macros/s/AKfycbzJUZMUIozkoUghM2v4N6lggSw60fWYjnODoUkaokUcUJ76nOS1dnmUAmmbaQWKkkBe/exec';   // 예: 'https://script.google.com/macros/s/AKfy.../exec'
 const APP_NAME = 'EMK BED';
-const VERSION  = 'v1.4.0';   // 수정할 때마다 올려주세요 (지점 화면 하단 상태바에 표시)
+const VERSION  = 'v1.4.1';   // 수정할 때마다 올려주세요 (지점 화면 하단 상태바에 표시)
 
 /* ========================================================= */
 const DEMO = !API_URL;
@@ -431,6 +440,7 @@ $('#loginForm').addEventListener('submit', async e => {
   } catch (err) { $('#lgMsg').textContent = err.message; }
   finally { busy(btn, false); }
 });
+$('#pwEye').addEventListener('click', () => { const i = $('#lgPw'); const m = i.classList.toggle('masked'); $('#pwEye').textContent = m ? '보기' : '숨김'; i.focus(); });
 $('#logoutBtn').addEventListener('click', () => doLogout());
 function doLogout(silent) {
   if (!silent && state.token) api('logout').catch(() => {});
