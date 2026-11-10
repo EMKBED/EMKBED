@@ -356,15 +356,17 @@
             <select id="pOptionSel"></select>
             <input id="pOption" class="hidden" placeholder="새 세부옵션 입력">
           </div>
+          <div class="field"><label>적용 지점</label><select id="pBranch"><option value="">기본단가 (전 지점)</option></select></div>
           <div class="field"><label>단가 (원) *</label><input id="pPrice" required inputmode="numeric"></div>
-          <div class="field"><label>비고</label><input id="pNote"></div>
+          <div class="field" style="grid-column:1/-1"><label>비고</label><input id="pNote"></div>
           <div class="row" style="grid-column:1/-1;justify-content:space-between">
-            <span class="muted">주문등록 화면의 모델명 → 세부옵션 2단 선택과 같은 구조입니다. 새 항목은 '직접입력'을 고르세요.</span>
+            <span class="muted">기본단가는 전 지점 공통. 특정 지점만 단가가 다르면 '적용 지점'을 골라 저장하세요 — 그 지점은 기본 대신 이 단가를 씁니다.</span>
             <button class="btn" type="submit" id="prodAddBtn">저장</button>
           </div>
         </form>
+        <div class="row" style="margin-bottom:8px"><div class="field" style="min-width:200px"><label>보기</label><select id="pView"><option value="">전체 (기본 + 지점별)</option><option value="__base__">기본단가만</option></select></div></div>
         <div class="tbl-wrap" id="prodTable"></div>
-        <div class="muted" style="margin-top:8px">단가를 바꾸면 이후 주문부터 적용됩니다(기존 주문 금액은 그대로). 사용 해제하면 지점 선택 목록에서 빠집니다.</div>
+        <div class="muted" style="margin-top:8px">단가를 바꾸면 이후 주문부터 적용됩니다(기존 주문 금액은 그대로). 사용 해제하면 지점 선택 목록에서 빠집니다. 지점별 행을 삭제하면 그 지점은 다시 기본단가를 씁니다.</div>
       </div>
     </section>
 
@@ -381,9 +383,9 @@
 /* =========================================================
    설정 — Apps Script 웹앱 URL을 여기에 붙이세요
    ========================================================= */
-const API_URL = 'https://script.google.com/macros/s/AKfycbwNy8na5gS58tYggXRGI0V8ErxLz-0DqkvAKY8N8W775BuJw39vY4giG9l5jGDqPYkd/exec';   // 예: 'https://script.google.com/macros/s/AKfy.../exec'
+const API_URL = 'https://script.google.com/macros/s/AKfycbxH1KvWoQ4DZLKsJc_mic1GANJ28pnKGl-l_8T-EcI0Qi7BX7fLH4y0w8o8PxxJzXzK/exec';   // 예: 'https://script.google.com/macros/s/AKfy.../exec'
 const APP_NAME = 'EMK BED';
-const VERSION  = 'v1.6.0';   // 수정할 때마다 올려주세요 (지점 화면 하단 상태바에 표시)
+const VERSION  = 'v1.7.0';   // 수정할 때마다 올려주세요 (지점 화면 하단 상태바에 표시)
 
 /* ========================================================= */
 const DEMO = !API_URL;
@@ -498,6 +500,8 @@ async function loadAccounts() {
   const a = await api('accounts'); state.allAccounts = a.accounts; state.accounts = a.accounts.filter(x => x.role !== 'admin');
   const opts = state.accounts.map(x => `<option value="${esc(x.code)}">${esc(x.name)} (${esc(x.code)})</option>`).join('');
   $('#fBranch').innerHTML = opts; $('#lBranch').innerHTML = '<option value="">전체</option>' + opts;
+  $('#pBranch').innerHTML = '<option value="">기본단가 (전 지점)</option>' + opts;
+  $('#pView').innerHTML = '<option value="">전체 (기본 + 지점별)</option><option value="__base__">기본단가만</option>' + opts;
   renderAccounts(a.accounts);
 }
 async function loadProductsAdmin() {
@@ -878,7 +882,7 @@ function renderLogs() {
 /* ---------------- 제품단가 (관리자) ---------------- */
 const NEW = '__new__';
 function fillProdModelSel() {
-  const ms = [...new Set((state.productsAll || []).map(p => p.model))];
+  const ms = [...new Set((state.productsAll || []).filter(p => !p.branchCode).map(p => p.model))];
   const cur = $('#pModelSel').value;
   $('#pModelSel').innerHTML = '<option value="">선택</option>' + ms.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('') + `<option value="${NEW}">＋ 직접입력 (새 모델)</option>`;
   $('#pModelSel').value = ms.includes(cur) ? cur : ''; fillProdOptionSel();
@@ -886,32 +890,43 @@ function fillProdModelSel() {
 function fillProdOptionSel() {
   const mv = $('#pModelSel').value; const isNewM = mv === NEW;
   $('#pModel').classList.toggle('hidden', !isNewM); if (isNewM) $('#pModel').focus();
-  const opts = isNewM ? [] : (state.productsAll || []).filter(p => p.model === mv).map(p => p.option);
+  const opts = isNewM ? [] : [...new Set((state.productsAll || []).filter(p => p.model === mv).map(p => p.option))];
   $('#pOptionSel').innerHTML = (mv ? '<option value="">선택</option>' : '<option value="">모델 먼저 선택</option>') + opts.map(o => `<option value="${esc(o)}">${esc(o || '(기본)')}</option>`).join('') + (mv ? `<option value="${NEW}">＋ 직접입력 (새 옵션)</option>` : '');
   if (isNewM) $('#pOptionSel').value = NEW;
   $('#pOptionSel').disabled = !mv;
   syncProdOption();
 }
+function branchName(code) { const a = (state.allAccounts || []).find(x => x.code === code); return a ? a.name : code; }
 function syncProdOption() {
-  const ov = $('#pOptionSel').value, isNew = ov === NEW;
+  const ov = $('#pOptionSel').value, isNew = ov === NEW, bc = $('#pBranch').value;
   $('#pOption').classList.toggle('hidden', !isNew);
-  if (!isNew && ov !== '') { const p = (state.productsAll || []).find(x => x.model === $('#pModelSel').value && x.option === ov); if (p) { $('#pPrice').value = num(p.price); $('#pNote').value = p.note || ''; } }
+  if (!isNew && ov !== '') {
+    const all = state.productsAll || []; const m = $('#pModelSel').value;
+    const p = all.find(x => x.model === m && x.option === ov && (x.branchCode || '') === bc) || all.find(x => x.model === m && x.option === ov && !x.branchCode);
+    if (p) { $('#pPrice').value = num(p.price); $('#pNote').value = p.note || ''; }
+  }
 }
 $('#pModelSel').addEventListener('change', fillProdOptionSel);
 $('#pOptionSel').addEventListener('change', syncProdOption);
+$('#pBranch').addEventListener('change', syncProdOption);
+$('#pView').addEventListener('change', renderProducts);
 function renderProducts() {
-  const order = [...new Set((state.productsAll || []).map(p => p.model))];
-  const list = [...(state.productsAll || [])].sort((a, b) => order.indexOf(a.model) - order.indexOf(b.model));  // 모델별 묶음
+  const all = state.productsAll || [];
+  const order = [...new Set(all.map(p => p.model))];
+  const view = $('#pView').value;
+  const list = all.filter(p => view === '' || (view === '__base__' ? !p.branchCode : (p.branchCode === view || !p.branchCode)))
+    .sort((a, b) => order.indexOf(a.model) - order.indexOf(b.model) || a.option.localeCompare(b.option) || (a.branchCode ? 1 : 0) - (b.branchCode ? 1 : 0) || a.branchCode.localeCompare(b.branchCode));
   fillProdModelSel();
-  $('#prodTable').innerHTML = `<table style="min-width:640px"><thead><tr><th style="text-align:left">모델명</th><th style="text-align:left">세부옵션</th><th>단가</th><th style="text-align:left">비고</th><th>사용</th><th></th></tr></thead><tbody>
-    ${list.map((p, i) => `<tr data-model="${esc(p.model)}" data-option="${esc(p.option)}">
+  $('#prodTable').innerHTML = `<table style="min-width:760px"><thead><tr><th style="text-align:left">모델명</th><th style="text-align:left">세부옵션</th><th style="text-align:left">적용 지점</th><th>단가</th><th style="text-align:left">비고</th><th>사용</th><th></th></tr></thead><tbody>
+    ${list.map((p, i) => `<tr data-model="${esc(p.model)}" data-option="${esc(p.option)}" data-branch="${esc(p.branchCode || '')}" ${p.branchCode ? 'style="background:#fbfaf6"' : ''}>
       <td style="text-align:left">${i > 0 && list[i - 1].model === p.model ? '<span class="muted">〃</span>' : esc(p.model)}</td>
-      <td style="text-align:left">${esc(p.option || '(기본)')}</td>
+      <td style="text-align:left">${i > 0 && list[i - 1].model === p.model && list[i - 1].option === p.option ? '<span class="muted">〃</span>' : esc(p.option || '(기본)')}</td>
+      <td style="text-align:left">${p.branchCode ? '<span class="pill">' + esc(branchName(p.branchCode)) + '</span>' : '<span class="muted">기본</span>'}</td>
       <td><input class="cell" data-f="price" inputmode="numeric" value="${num(p.price)}" style="text-align:right"></td>
       <td style="text-align:left"><input class="cell" data-f="note" value="${esc(p.note || '')}"></td>
       <td><label class="chk" style="justify-content:center"><input type="checkbox" data-f="use" ${p.use !== 'N' ? 'checked' : ''}></label></td>
       <td class="act"><button class="btn sm saveProd">저장</button> <button class="btn ghost sm delProd">삭제</button></td>
-    </tr>`).join('') || '<tr><td colspan="6" class="muted" style="text-align:center">제품 없음</td></tr>'}
+    </tr>`).join('') || '<tr><td colspan="7" class="muted" style="text-align:center">제품 없음</td></tr>'}
   </tbody></table>`;
 }
 $('#prodForm').addEventListener('submit', async e => {
@@ -921,25 +936,27 @@ $('#prodForm').addEventListener('submit', async e => {
   const option = (ov === NEW ? $('#pOption').value : ov).trim();
   if (!model) return toast('모델명을 선택하거나 입력하세요', true);
   if (mv !== NEW && ov === '') return toast('세부옵션을 선택하거나 직접입력하세요', true);
-  const name = option ? model + ' ' + option : model;
-  const exists = (state.productsAll || []).some(p => p.model === model && p.option === option);
+  const bc = $('#pBranch').value;
+  const name = (option ? model + ' ' + option : model) + (bc ? ` · ${branchName(bc)}` : '');
+  const exists = (state.productsAll || []).some(p => p.model === model && p.option === option && (p.branchCode || '') === bc);
   if (exists && !confirm(`'${name}' 이(가) 이미 있어요. 단가·비고를 덮어쓸까요?`)) return;
+  if (bc && !(state.productsAll || []).some(p => p.model === model && p.option === option && !p.branchCode) && !confirm(`'${model} ${option}' 기본단가가 아직 없어요. 지점 전용으로만 등록할까요?`)) return;
   const btn = $('#prodAddBtn'); busy(btn, true, '저장 중');
   try {
-    await api('upsertProduct', { product: { model, option, price: $('#pPrice').value, note: $('#pNote').value.trim(), use: 'Y' } });
+    await api('upsertProduct', { product: { model, option, branchCode: bc, price: $('#pPrice').value, note: $('#pNote').value.trim(), use: 'Y' } });
     toast((exists ? '수정: ' : '추가: ') + name);
     ['pModel','pOption','pPrice','pNote'].forEach(id => $('#' + id).value = ''); await loadProductsAdmin();
   } catch (err) { toast(err.message, true); } finally { busy(btn, false); }
 });
 $('#prodTable').addEventListener('click', async e => {
-  const tr = e.target.closest('tr'); if (!tr || tr.dataset.model === undefined) return; const model = tr.dataset.model, option = tr.dataset.option; const name = option ? model + ' ' + option : model;
+  const tr = e.target.closest('tr'); if (!tr || tr.dataset.model === undefined) return; const model = tr.dataset.model, option = tr.dataset.option, bc = tr.dataset.branch || ''; const name = (option ? model + ' ' + option : model) + (bc ? ` · ${branchName(bc)}` : '');
   const g = f => tr.querySelector(`[data-f="${f}"]`);
   if (e.target.classList.contains('saveProd')) {
-    busy(e.target, true, '저장'); try { await api('upsertProduct', { product: { model, option, price: g('price').value, note: g('note').value.trim(), use: g('use').checked ? 'Y' : 'N' } }); toast('저장됨: ' + name); await loadProductsAdmin(); } catch (err) { toast(err.message, true); busy(e.target, false); }
+    busy(e.target, true, '저장'); try { await api('upsertProduct', { product: { model, option, branchCode: bc, price: g('price').value, note: g('note').value.trim(), use: g('use').checked ? 'Y' : 'N' } }); toast('저장됨: ' + name); await loadProductsAdmin(); } catch (err) { toast(err.message, true); busy(e.target, false); }
   }
   if (e.target.classList.contains('delProd')) {
-    if (!confirm(`'${name}' 을(를) 삭제할까요?\n기존 주문은 그대로 남습니다.`)) return;
-    busy(e.target, true, '삭제'); try { await api('deleteProduct', { model, option }); toast('삭제됨: ' + name); await loadProductsAdmin(); } catch (err) { toast(err.message, true); busy(e.target, false); }
+    if (!confirm(bc ? `'${name}' 지점 전용 단가를 삭제할까요?\n이 지점은 다시 기본단가를 씁니다.` : `'${name}' 을(를) 삭제할까요?\n기존 주문은 그대로 남습니다.`)) return;
+    busy(e.target, true, '삭제'); try { await api('deleteProduct', { model, option, branchCode: bc }); toast('삭제됨: ' + name); await loadProductsAdmin(); } catch (err) { toast(err.message, true); busy(e.target, false); }
   }
 });
 
@@ -963,17 +980,23 @@ function demoApi(action, p) {
   switch (action) {
     case 'me': return resp({ ok: true, user: u });
     case 'logout': db.session = null; save(); return resp({ ok: true });
-    case 'products': return resp({ ok: true, products: db.products.filter(x => p.all || x.use !== 'N') });
+    case 'products': {
+      if (p.all) return resp({ ok: true, products: db.products });
+      const bc = u.role === 'admin' ? (p.branchCode || '') : u.code;
+      const base = db.products.filter(x => !x.branchCode && x.use !== 'N');
+      return resp({ ok: true, products: base.map(b => { const ov = db.products.find(x => x.branchCode === bc && x.model === b.model && x.option === b.option && x.use !== 'N'); return { ...b, price: ov ? ov.price : b.price, custom: !!ov }; }) });
+    }
     case 'accounts': return resp({ ok: true, accounts: db.accounts });
     case 'upsertAccount': { const a = p.account; let x = db.accounts.find(q => q.code === a.code); if (x) Object.assign(x, a); else db.accounts.push({ ...a, role: 'branch' }); save(); return resp({ ok: true }); }
     case 'deleteAccount': { if (p.code === u.code) return fail('본인 계정은 삭제할 수 없어요'); db.accounts = db.accounts.filter(a => a.code !== p.code || a.role === 'admin'); save(); return resp({ ok: true }); }
-    case 'upsertProduct': { const q = p.product; const price = Number(String(q.price).replace(/[^\d]/g, '')) || 0; const name = q.option ? q.model + ' ' + q.option : q.model; let x = db.products.find(z => z.model === q.model && z.option === q.option); if (x) Object.assign(x, q, { price, name }); else db.products.push({ ...q, price, name }); save(); return resp({ ok: true }); }
-    case 'deleteProduct': db.products = db.products.filter(z => !(z.model === p.model && z.option === p.option)); save(); return resp({ ok: true });
+    case 'upsertProduct': { const q = p.product; q.branchCode = q.branchCode || ''; const price = Number(String(q.price).replace(/[^\d]/g, '')) || 0; const name = q.option ? q.model + ' ' + q.option : q.model; let x = db.products.find(z => z.model === q.model && z.option === q.option && (z.branchCode || '') === q.branchCode); if (x) Object.assign(x, q, { price, name }); else db.products.push({ ...q, price, name }); save(); return resp({ ok: true }); }
+    case 'deleteProduct': db.products = db.products.filter(z => !(z.model === p.model && z.option === p.option && (z.branchCode || '') === (p.branchCode || ''))); save(); return resp({ ok: true });
     case 'bulkStatus': { let n = 0; db.orders.forEach(o => { if (p.orderNos.includes(o.orderNo)) { o.status = p.status; n++; } }); db.logs.unshift({ at: new Date().toISOString().slice(0, 19), code: u.code, name: u.name, action: '일괄상태변경', target: n + '건', detail: '→ ' + p.status }); save(); return resp({ ok: true, updated: n }); }
     case 'logs': return resp({ ok: true, logs: db.logs });
     case 'createOrder': {
       const o = p.order; const acc = u.role === 'admin' && o.branchCode ? db.accounts.find(a => a.code === o.branchCode) : u;
-      const unit = u.role === 'admin' && o.unitPrice >= 0 ? o.unitPrice : (db.products.find(x => x.model === o.model && x.option === o.option) || {}).price || 0;
+      const pick = db.products.find(x => x.model === o.model && x.option === o.option && x.branchCode === acc.code) || db.products.find(x => x.model === o.model && x.option === o.option && !x.branchCode);
+      const unit = u.role === 'admin' && o.unitPrice >= 0 ? o.unitPrice : (pick || {}).price || 0;
       const no = new Date().toISOString().slice(2, 10).replace(/-/g, '') + '-' + String(db.orders.length + 1).padStart(3, '0');
       db.logs.unshift({ at: new Date().toISOString().slice(0, 19), code: u.code, name: u.name, action: '주문등록', target: no, detail: `${acc.name} / ${o.customer} / ${o.model} ${o.option || ''} ${o.fabric || ''}` });
       db.orders.unshift({ orderNo: no, createdAt: new Date().toISOString().slice(0, 19), branchCode: acc.code, branchName: acc.name, customer: o.customer, model: o.model, option: o.option, product: o.model + (o.option ? ' ' + o.option : ''), fabric: o.fabric, mattressSize: o.mattressSize, plateHeight: o.plateHeight, memo: o.memo, deliveryDate: o.deliveryDate, qty: o.qty, unitPrice: unit, amount: unit * o.qty, status: '주문접수대기' });
@@ -994,12 +1017,13 @@ function demoApi(action, p) {
     }
   }
   return fail('알 수 없는 action');
-  function save() { sessionStorage.setItem('pf_demo6', JSON.stringify(db)); }
+  function save() { sessionStorage.setItem('pf_demo7', JSON.stringify(db)); }
 }
 function demoDb() {
-  const c = sessionStorage.getItem('pf_demo6'); if (c) return JSON.parse(c);
+  const c = sessionStorage.getItem('pf_demo7'); if (c) return JSON.parse(c);
   const accounts = [{ code: 'admin', name: 'EMK BED 본사', role: 'admin', use: 'Y', password: '1234' }, { code: 'PT-GD', name: '씰리 평택 고덕점', role: 'branch', use: 'Y' }, { code: 'SW-YT', name: '씰리 수원 영통점', role: 'branch', use: 'Y' }, { code: 'YI-GH', name: '씰리 용인 기흥점', role: 'branch', use: 'Y' }];
-  const products = [['스퀘어','22 Q/K',350000],['스퀘어','22 SS',320000],['스퀘어','다리 Q/K',330000],['셀레나','Q/K',390000],['셀레나','SS',360000],['솔루나','Q/K',690000],['커브','Q/K',590000]].map(([model, option, price]) => ({ model, option, price, name: model + ' ' + option, use: 'Y', note: '' }));
+  const products = [['스퀘어','22 Q/K',350000],['스퀘어','22 SS',320000],['스퀘어','다리 Q/K',330000],['셀레나','Q/K',390000],['셀레나','SS',360000],['솔루나','Q/K',690000],['커브','Q/K',590000]].map(([model, option, price]) => ({ model, option, price, name: model + ' ' + option, use: 'Y', note: '', branchCode: '' }));
+  products.push({ model: '스퀘어', option: '22 Q/K', price: 340000, name: '스퀘어 22 Q/K', use: 'Y', note: '평택고덕 특가', branchCode: 'PT-GD' });
   const orders = []; let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
   const y = new Date().getFullYear(); const nowM = new Date().getMonth();
   for (let m = 0; m <= nowM; m++) for (const a of accounts.slice(1)) { const n = Math.floor(rnd() * 5) + (a.code === 'PT-GD' ? 2 : 0); for (let k = 0; k < n; k++) {
