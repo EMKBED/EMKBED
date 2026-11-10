@@ -154,6 +154,20 @@
   @font-face{font-family:'PWMask';src:url(data:font/woff2;base64,d09GMgABAAAAAAGIAAoAAAAAXJAAAAE8AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgbNMCoEYgRQBNgIkAwwLCAAEIAVdBy0bz1vILgbshvqGyYIyliFE5Rg/ufX5WBfP/3Pfb597328e7C1vmDXhAv7A+TCBJhZQK7ICib/Pc81/Rwdc8bw0c9FcRWseWeHMz2i7iokunK8eZBxN9fS4RdASCgCCQBMOOIXkYD9d+IDfLnKxC/l1cvjLt6LgFEd0aEddyYeJAamzAW5LMNa1OIOEHwBHKG7saDA/3H1hyYJSHjTe6mYNRnzSv/DfTRQAEEu+8ygLUf2CoMEcCmfgCsAAghwcrGXDcYokyixLEyXdtvM4LV3X3A5/+TKgn+p4rD7pYOkkZLga5PmP161/iug/+N3J9OrePf9i0QqEYLXXFED5yNpA1xRyRE1B0A4QUAAAGNwgIOYQUObNaRkWxYpVt8qaw+6kNT3tX0LeAV0TLVMne31LaxcHU0ekCo1ODWl6AAA=) format('woff2')}
   .masked{font-family:'PWMask',sans-serif;letter-spacing:1px}
   .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--ink-3);font-size:12.5px;font-weight:600;padding:8px;cursor:pointer}
+  .modal{position:fixed;inset:0;z-index:40;background:rgba(29,27,24,.45);display:flex;align-items:flex-end;justify-content:center}
+  @media (min-width:760px){.modal{align-items:center}}
+  .sheet{background:var(--card);width:100%;max-width:900px;max-height:94vh;border-radius:18px 18px 0 0;display:flex;flex-direction:column;box-shadow:0 -10px 40px rgba(0,0,0,.2)}
+  @media (min-width:760px){.sheet{border-radius:18px;max-height:88vh}}
+  .sheet-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px 10px}
+  .sheet-body{padding:0 18px 12px;overflow:auto;flex:1}
+  .sheet-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#faf8f4;border-radius:0 0 18px 18px}
+  #bulkTable th,#bulkTable td{padding:6px 8px}
+  #bulkTable th:first-child,#bulkTable td:first-child{position:static}
+  #bulkTable input{width:100%;min-width:80px;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fcfbf9;font:inherit}
+  #bulkTable input.price{text-align:right;font-variant-numeric:tabular-nums}
+  #bulkTable input.changed{border-color:var(--ink);background:#fff}
+  #bulkTable .ref{color:var(--ink-3);font-size:12px;white-space:nowrap}
+  #bulkTable tr.newrow td{background:#fffaf0}
   .demo{background:#fff3cd;color:#6b4e00;border:1px solid #f0dc9c;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px}
 </style>
 </head>
@@ -364,13 +378,46 @@
             <button class="btn" type="submit" id="prodAddBtn">저장</button>
           </div>
         </form>
-        <div class="row" style="margin-bottom:8px"><div class="field" style="min-width:200px"><label>보기</label><select id="pView"><option value="">전체 (기본 + 지점별)</option><option value="__base__">기본단가만</option></select></div></div>
+        <div class="row" style="margin-bottom:8px;justify-content:space-between;align-items:flex-end">
+          <div class="field" style="min-width:200px"><label>보기</label><select id="pView"><option value="">전체 (기본 + 지점별)</option><option value="__base__">기본단가만</option></select></div>
+          <button class="btn" type="button" id="bulkOpen">⊞ 일괄 입력</button>
+        </div>
         <div class="tbl-wrap" id="prodTable"></div>
         <div class="muted" style="margin-top:8px">단가를 바꾸면 이후 주문부터 적용됩니다(기존 주문 금액은 그대로). 사용 해제하면 지점 선택 목록에서 빠집니다. 지점별 행을 삭제하면 그 지점은 다시 기본단가를 씁니다.</div>
       </div>
     </section>
 
   </main>
+</div>
+
+<!-- ============ 단가 일괄 입력 ============ -->
+<div id="bulkModal" class="modal hidden">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div><div class="label">제품단가</div><h2 style="margin:2px 0 0">일괄 입력</h2></div>
+      <button class="btn ghost sm" id="bulkClose">닫기</button>
+    </div>
+    <div class="row" style="padding:0 18px 10px">
+      <div class="field" style="min-width:220px"><label>범위</label><select id="bulkScope"><option value="">공통 (기본단가)</option></select></div>
+      <div class="muted grow" id="bulkHint"></div>
+    </div>
+    <div class="sheet-body">
+      <div class="tbl-wrap"><table id="bulkTable" style="min-width:560px"></table></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn ghost sm" id="bulkAddRow">＋ 행 추가</button>
+        <button class="btn ghost sm" id="bulkPasteToggle">엑셀 붙여넣기</button>
+      </div>
+      <div id="bulkPasteBox" class="hidden" style="margin-top:10px">
+        <div class="field"><label>한 줄에 하나 — <b>모델명 [탭] 세부옵션 [탭] 단가</b> (엑셀에서 3열 복사해 붙여넣기. 콤마·공백 구분도 인식)</label>
+          <textarea id="bulkPaste" rows="5"></textarea></div>
+        <button class="btn sm" id="bulkPasteApply" style="margin-top:8px">표에 반영</button>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <span class="muted" id="bulkSummary"></span>
+      <button class="btn" id="bulkSave">전체 저장</button>
+    </div>
+  </div>
 </div>
 
 <!-- ============ 상태바 ============ -->
@@ -385,7 +432,7 @@
    ========================================================= */
 const API_URL = 'https://script.google.com/macros/s/AKfycbxH1KvWoQ4DZLKsJc_mic1GANJ28pnKGl-l_8T-EcI0Qi7BX7fLH4y0w8o8PxxJzXzK/exec';   // 예: 'https://script.google.com/macros/s/AKfy.../exec'
 const APP_NAME = 'EMK BED';
-const VERSION  = 'v1.7.0';   // 수정할 때마다 올려주세요 (지점 화면 하단 상태바에 표시)
+const VERSION  = 'v1.8.0';   // 수정할 때마다 올려주세요 (지점 화면 하단 상태바에 표시)
 
 /* ========================================================= */
 const DEMO = !API_URL;
@@ -502,6 +549,7 @@ async function loadAccounts() {
   $('#fBranch').innerHTML = opts; $('#lBranch').innerHTML = '<option value="">전체</option>' + opts;
   $('#pBranch').innerHTML = '<option value="">기본단가 (전 지점)</option>' + opts;
   $('#pView').innerHTML = '<option value="">전체 (기본 + 지점별)</option><option value="__base__">기본단가만</option>' + opts;
+  $('#bulkScope').innerHTML = '<option value="">공통 (기본단가)</option>' + opts;
   renderAccounts(a.accounts);
 }
 async function loadProductsAdmin() {
@@ -919,8 +967,8 @@ function renderProducts() {
   fillProdModelSel();
   $('#prodTable').innerHTML = `<table style="min-width:760px"><thead><tr><th style="text-align:left">모델명</th><th style="text-align:left">세부옵션</th><th style="text-align:left">적용 지점</th><th>단가</th><th style="text-align:left">비고</th><th>사용</th><th></th></tr></thead><tbody>
     ${list.map((p, i) => `<tr data-model="${esc(p.model)}" data-option="${esc(p.option)}" data-branch="${esc(p.branchCode || '')}" ${p.branchCode ? 'style="background:#fbfaf6"' : ''}>
-      <td style="text-align:left">${i > 0 && list[i - 1].model === p.model ? '<span class="muted">〃</span>' : esc(p.model)}</td>
-      <td style="text-align:left">${i > 0 && list[i - 1].model === p.model && list[i - 1].option === p.option ? '<span class="muted">〃</span>' : esc(p.option || '(기본)')}</td>
+      <td style="text-align:left">${esc(p.model)}</td>
+      <td style="text-align:left">${esc(p.option || '(기본)')}</td>
       <td style="text-align:left">${p.branchCode ? '<span class="pill">' + esc(branchName(p.branchCode)) + '</span>' : '<span class="muted">기본</span>'}</td>
       <td><input class="cell" data-f="price" inputmode="numeric" value="${num(p.price)}" style="text-align:right"></td>
       <td style="text-align:left"><input class="cell" data-f="note" value="${esc(p.note || '')}"></td>
@@ -960,6 +1008,87 @@ $('#prodTable').addEventListener('click', async e => {
   }
 });
 
+/* ---------------- 단가 일괄 입력 ---------------- */
+$('#bulkOpen').addEventListener('click', () => { $('#bulkModal').classList.remove('hidden'); renderBulk(); });
+$('#bulkClose').addEventListener('click', () => $('#bulkModal').classList.add('hidden'));
+$('#bulkModal').addEventListener('click', e => { if (e.target === $('#bulkModal')) $('#bulkModal').classList.add('hidden'); });
+$('#bulkScope').addEventListener('change', renderBulk);
+$('#bulkPasteToggle').addEventListener('click', () => $('#bulkPasteBox').classList.toggle('hidden'));
+$('#bulkAddRow').addEventListener('click', () => { addBulkRow({ model: '', option: '', price: '' }, true); updateBulkSummary(); });
+$('#bulkTable').addEventListener('input', e => { if (e.target.matches('input')) { e.target.classList.toggle('changed', e.target.value !== (e.target.dataset.orig || '')); updateBulkSummary(); } });
+
+function bulkBase() {   // 기본단가 행 + (지점 범위면) 그 지점 전용으로만 있는 행
+  const all = state.productsAll || []; const bc = $('#bulkScope').value;
+  const order = [...new Set(all.map(p => p.model))];
+  const rows = all.filter(p => !p.branchCode).map(p => ({ model: p.model, option: p.option, base: p.price, note: p.note, price: p.price }));
+  if (bc) {
+    rows.forEach(r => { const ov = all.find(x => x.branchCode === bc && x.model === r.model && x.option === r.option); r.price = ov ? ov.price : ''; r.ovNote = ov ? ov.note : ''; });
+    all.filter(x => x.branchCode === bc && !rows.some(r => r.model === x.model && r.option === x.option)).forEach(x => rows.push({ model: x.model, option: x.option, base: null, note: x.note, price: x.price }));
+  }
+  return rows.sort((a, b) => order.indexOf(a.model) - order.indexOf(b.model) || a.option.localeCompare(b.option));
+}
+function renderBulk() {
+  const bc = $('#bulkScope').value;
+  $('#bulkHint').textContent = bc ? `${branchName(bc)} 전용 단가. 빈칸으로 저장하면 그 제품은 기본단가를 씁니다.` : '전 지점 공통 기본단가. 빈칸은 변경하지 않습니다.';
+  const t = $('#bulkTable');
+  t.innerHTML = `<thead><tr><th style="text-align:left">모델명</th><th style="text-align:left">세부옵션</th>${bc ? '<th>기본단가</th>' : ''}<th>${bc ? '지점 단가' : '단가'}</th>${bc ? '' : '<th style="text-align:left">비고</th>'}</tr></thead><tbody></tbody>`;
+  bulkBase().forEach(r => addBulkRow(r, false));
+  $('#bulkPaste').value = ''; updateBulkSummary();
+}
+function addBulkRow(r, isNew) {
+  const bc = $('#bulkScope').value; const tb = $('#bulkTable tbody');
+  const tr = document.createElement('tr'); if (isNew) tr.className = 'newrow';
+  const priceVal = r.price === '' || r.price === undefined || r.price === null ? '' : num(r.price);
+  tr.innerHTML = `
+    <td style="text-align:left">${isNew ? `<input class="model" placeholder="모델명">` : `${esc(r.model)}<input type="hidden" class="model" value="${esc(r.model)}">`}</td>
+    <td style="text-align:left">${isNew ? `<input class="option" placeholder="세부옵션">` : `${esc(r.option || '(기본)')}<input type="hidden" class="option" value="${esc(r.option)}">`}</td>
+    ${bc ? `<td class="ref">${r.base === null || r.base === undefined ? '<span class="muted">기본 없음</span>' : won(r.base)}</td>` : ''}
+    <td><input class="price" inputmode="numeric" value="${priceVal}" data-orig="${priceVal}" placeholder="${bc && r.base != null ? '기본 사용' : '0'}"></td>
+    ${bc ? '' : `<td style="text-align:left"><input class="note" value="${esc(r.note || '')}" data-orig="${esc(r.note || '')}"></td>`}`;
+  tb.appendChild(tr);
+  if (isNew) tr.querySelector('.model').focus();
+}
+function collectBulk() {
+  const bc = $('#bulkScope').value; const items = [];
+  $$('#bulkTable tbody tr').forEach(tr => {
+    const model = tr.querySelector('.model').value.trim(), option = tr.querySelector('.option').value.trim();
+    const priceEl = tr.querySelector('.price'), noteEl = tr.querySelector('.note');
+    if (!model) return;
+    const isNew = tr.classList.contains('newrow');
+    const priceChanged = priceEl.value !== (priceEl.dataset.orig || '');
+    const noteChanged = noteEl && noteEl.value !== (noteEl.dataset.orig || '');
+    if (!isNew && !priceChanged && !noteChanged) return;
+    if (isNew && priceEl.value.trim() === '') return;
+    const it = { model, option, price: priceEl.value.replace(/[^\d]/g, '') };
+    if (noteEl) it.note = noteEl.value.trim();
+    items.push(it);
+  });
+  return items;
+}
+function updateBulkSummary() { const n = collectBulk().length; $('#bulkSummary').textContent = n ? `변경 ${n}건` : '변경 없음'; $('#bulkSave').disabled = !n; }
+$('#bulkPasteApply').addEventListener('click', () => {
+  const lines = $('#bulkPaste').value.split(/\r?\n/).map(l => l.trim()).filter(Boolean); let hit = 0, added = 0;
+  lines.forEach(l => {
+    l = l.replace(/(\d),(?=\d{3}(\D|$))/g, '$1').replace(/[₩원]/g, '');   // 천단위 콤마 제거
+    let parts = l.includes('\t') ? l.split('\t') : l.includes(',') ? l.split(',') : l.split(/\s+/);
+    parts = parts.map(x => x.trim()).filter(x => x !== '');
+    if (parts.length < 2) return;
+    const price = parts.pop().replace(/[^\d]/g, ''); const model = parts.shift(); const option = parts.join(' ');
+    const tr = $$('#bulkTable tbody tr').find(t => t.querySelector('.model').value.trim() === model && t.querySelector('.option').value.trim() === option);
+    if (tr) { const p = tr.querySelector('.price'); p.value = num(Number(price)); p.classList.toggle('changed', p.value !== p.dataset.orig); hit++; }
+    else { addBulkRow({ model, option, price: Number(price) }, true); const last = $('#bulkTable tbody tr:last-child'); last.querySelector('.model').value = model; last.querySelector('.option').value = option; added++; }
+  });
+  toast(`반영: 기존 ${hit}건 수정, ${added}건 추가`); updateBulkSummary();
+});
+$('#bulkSave').addEventListener('click', async e => {
+  const items = collectBulk(); if (!items.length) return;
+  const bc = $('#bulkScope').value;
+  if (!confirm(`${bc ? branchName(bc) + ' 전용' : '공통 기본'} 단가 ${items.length}건을 저장할까요?`)) return;
+  busy(e.target, true, '저장 중');
+  try { const r = await api('bulkProducts', { branchCode: bc, items }); toast(`저장 완료 — 추가 ${r.added} · 수정 ${r.updated}${r.removed ? ' · 기본으로 복귀 ' + r.removed : ''}`); await loadProductsAdmin(); renderBulk(); }
+  catch (err) { toast(err.message, true); } finally { busy(e.target, false); }
+});
+
 /* ---------------- 유틸 ---------------- */
 const ymd = (y, m, d) => `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -991,6 +1120,11 @@ function demoApi(action, p) {
     case 'deleteAccount': { if (p.code === u.code) return fail('본인 계정은 삭제할 수 없어요'); db.accounts = db.accounts.filter(a => a.code !== p.code || a.role === 'admin'); save(); return resp({ ok: true }); }
     case 'upsertProduct': { const q = p.product; q.branchCode = q.branchCode || ''; const price = Number(String(q.price).replace(/[^\d]/g, '')) || 0; const name = q.option ? q.model + ' ' + q.option : q.model; let x = db.products.find(z => z.model === q.model && z.option === q.option && (z.branchCode || '') === q.branchCode); if (x) Object.assign(x, q, { price, name }); else db.products.push({ ...q, price, name }); save(); return resp({ ok: true }); }
     case 'deleteProduct': db.products = db.products.filter(z => !(z.model === p.model && z.option === p.option && (z.branchCode || '') === (p.branchCode || ''))); save(); return resp({ ok: true });
+    case 'bulkProducts': { const bc = p.branchCode || ''; let added = 0, updated = 0, removed = 0;
+      p.items.forEach(it => { const i = db.products.findIndex(z => z.model === it.model && z.option === it.option && (z.branchCode || '') === bc); const raw = String(it.price || '').replace(/[^\d]/g, '');
+        if (raw === '') { if (bc && i >= 0) { db.products.splice(i, 1); removed++; } return; }
+        const price = Number(raw); if (i >= 0) { db.products[i].price = price; if (it.note !== undefined) db.products[i].note = it.note; updated++; } else { db.products.push({ model: it.model, option: it.option, price, name: it.option ? it.model + ' ' + it.option : it.model, use: 'Y', note: it.note || '', branchCode: bc }); added++; } });
+      save(); return resp({ ok: true, added, updated, removed }); }
     case 'bulkStatus': { let n = 0; db.orders.forEach(o => { if (p.orderNos.includes(o.orderNo)) { o.status = p.status; n++; } }); db.logs.unshift({ at: new Date().toISOString().slice(0, 19), code: u.code, name: u.name, action: '일괄상태변경', target: n + '건', detail: '→ ' + p.status }); save(); return resp({ ok: true, updated: n }); }
     case 'logs': return resp({ ok: true, logs: db.logs });
     case 'createOrder': {
